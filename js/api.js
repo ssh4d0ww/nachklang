@@ -82,6 +82,22 @@ export function createSpotifyApi() {
     transfer: (deviceId, play) => request("PUT", "/me/player", { body: { device_ids: [deviceId], play } }),
     queue: () => request("GET", "/me/player/queue"),
     recent: () => request("GET", "/me/player/recently-played", { query: { limit: 30 } }),
+    addToQueue: (uri, deviceId) => request("POST", "/me/player/queue", { query: { uri, device_id: deviceId } }),
+
+    // Bibliothek
+    myPlaylists: (offset = 0) => request("GET", "/me/playlists", { query: { limit: 50, offset } }),
+    // seit Februar 2026 heißt der Endpunkt /items (früher /tracks) und liefert
+    // den Inhalt nur noch für eigene Playlists
+    playlistItems: (id, offset = 0) => request("GET", `/playlists/${id}/items`, { query: { limit: 50, offset, additional_types: "track,episode" } }),
+    savedTracks: (offset = 0) => request("GET", "/me/tracks", { query: { limit: 50, offset } }),
+    savedAlbums: (offset = 0) => request("GET", "/me/albums", { query: { limit: 50, offset } }),
+    album: (id) => request("GET", `/albums/${id}`),
+    albumTracks: (id, offset = 0) => request("GET", `/albums/${id}/tracks`, { query: { limit: 50, offset } }),
+    artist: (id) => request("GET", `/artists/${id}`),
+    artistAlbums: (id) => request("GET", `/artists/${id}/albums`, { query: { include_groups: "album,single", limit: 20 } }),
+    // seit Februar 2026: höchstens 10 Treffer pro Typ
+    search: (q) => request("GET", "/search", { query: { q, type: "track,artist,album,playlist", limit: 10 } }),
+
     // seit Februar 2026: Bibliothek über Spotify-URIs
     isSaved: (uris) => request("GET", "/me/library/contains", { query: { uris: uriList(uris) } }),
     save: (uris) => request("PUT", "/me/library", { query: { uris: uriList(uris) } }),

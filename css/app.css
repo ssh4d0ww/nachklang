@@ -19,6 +19,8 @@
   --r-item: 12px;
   --r-panel: 20px;
   --tint: 40 40 46;
+  /* Farbe ganz unten im Hintergrund (wird aus dem Cover berechnet) */
+  --bottom: 11 11 13;
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
@@ -33,12 +35,24 @@ html,
 body {
   margin: 0;
   min-height: 100%;
-  background: #0b0b0d;
   color: var(--text);
   font-family: var(--font);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overscroll-behavior: none;
+}
+
+/* iOS 26 lässt in Home-Bildschirm-Apps unten einen Streifen frei, in dem nur
+   der Seitenhintergrund zu sehen ist. Er bekommt deshalb die Farbe, mit der
+   der Cover-Hintergrund unten endet. */
+html {
+  background-color: rgb(var(--bottom));
+  transition: background-color 1s var(--ease);
+}
+
+html.sheet-open {
+  background-color: rgb(20 20 22);
+  transition-duration: 0.3s;
 }
 
 body {
@@ -105,7 +119,8 @@ button:disabled {
 .bd-shade {
   position: absolute;
   inset: 0;
-  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.18), rgba(0, 0, 0, 0.5) 70%, rgba(0, 0, 0, 0.62));
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.18), rgba(0, 0, 0, 0.5) 66%, rgb(var(--bottom)) 100%);
+  transition: background 1s var(--ease);
 }
 
 /* ---------------------------------------------------------------
@@ -178,6 +193,8 @@ button:disabled {
 }
 
 .pill {
+  min-width: 0;
+  flex: 0 1 auto;
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -369,6 +386,7 @@ button:disabled {
 }
 
 .topbar-actions {
+  flex: none;
   display: flex;
   align-items: center;
   gap: 2px;
@@ -387,6 +405,7 @@ button:disabled {
 }
 
 .cover-wrap {
+  touch-action: pan-y;
   position: relative;
   width: 100%;
   aspect-ratio: 1;
@@ -765,6 +784,18 @@ input[type="range"]::-moz-range-thumb {
   transition: transform 0.42s var(--ease), visibility 0s linear 0.42s;
 }
 
+/* verlängert das Sheet nach unten, falls iOS darunter Platz lässt */
+.sheet::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 100%;
+  height: 140px;
+  background: inherit;
+  pointer-events: none;
+}
+
 .sheet.is-open {
   transform: translateY(0);
   visibility: visible;
@@ -928,6 +959,300 @@ button.row:active {
   }
 }
 
+/* Seitenbereich: feste Höhe am Handy, Inhalte scrollen innen */
+.side.sheet {
+  height: 88dvh;
+}
+
+.pane {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.pane > .track-list,
+.lib {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+.lib .track-list {
+  overflow: visible;
+  min-height: 0;
+}
+
+.search {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 44px;
+  margin: 0 4px 8px;
+  padding: 0 6px 0 12px;
+  border-radius: var(--r-item);
+  background: var(--fill);
+  border: 0.5px solid var(--hairline);
+  color: var(--text-3);
+  cursor: text;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.search:focus-within {
+  background: var(--fill-hover);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.search .ic {
+  width: 18px;
+  height: 18px;
+}
+
+.search input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 16px;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.search input::placeholder {
+  color: var(--text-3);
+}
+
+.search input::-webkit-search-cancel-button {
+  display: none;
+}
+
+.search-clear {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  color: var(--text-2);
+}
+
+.search-clear .ic {
+  width: 16px;
+  height: 16px;
+}
+
+.row-wrap {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.row-wrap .row {
+  flex: 1;
+  min-width: 0;
+}
+
+.row-add {
+  width: 36px;
+  height: 36px;
+  flex: none;
+  color: var(--text-3);
+}
+
+.row-add .ic {
+  width: 20px;
+  height: 20px;
+}
+
+.row-chev {
+  color: var(--text-3);
+  flex: none;
+}
+
+.row-chev .ic {
+  width: 18px;
+  height: 18px;
+}
+
+.row.is-current .row-title {
+  color: var(--accent);
+}
+
+.row img.round,
+.thumb.round {
+  border-radius: 50%;
+}
+
+.thumb.num {
+  display: grid;
+  place-items: center;
+  background: transparent;
+  color: var(--text-3);
+  font-size: 14px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.liked-thumb {
+  display: grid;
+  place-items: center;
+  background: linear-gradient(145deg, #4a1f26, #1c1a1f) !important;
+  color: var(--accent);
+}
+
+.liked-thumb .ic {
+  width: 46%;
+  height: 46%;
+}
+
+.more-btn {
+  width: 100%;
+  height: 44px;
+  margin: 8px 0 4px;
+  border-radius: var(--r-item);
+  background: var(--fill);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-2);
+}
+
+.more-btn:disabled {
+  opacity: 0.5;
+}
+
+.list-empty.small {
+  padding: 8px;
+  text-align: left;
+  font-size: 13px;
+  color: var(--text-3);
+}
+
+.lib-top {
+  padding: 0 0 4px;
+}
+
+.back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  height: 36px;
+  max-width: 100%;
+  padding: 0 10px 0 2px;
+  border-radius: var(--r-control);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-2);
+}
+
+.back-btn span {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.back-btn:active {
+  background: var(--fill);
+}
+
+.detail-head {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 6px 8px 14px;
+}
+
+.detail-cover {
+  width: 112px;
+  height: 112px;
+  flex: none;
+  border-radius: var(--r-item);
+  object-fit: cover;
+  background: var(--fill);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.4);
+}
+
+.detail-cover.round {
+  border-radius: 50%;
+}
+
+.detail-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.detail-kind {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-3);
+}
+
+.detail-text h3 {
+  margin: 4px 0;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.detail-text p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-2);
+}
+
+.detail-actions {
+  display: flex;
+  gap: 8px;
+  padding: 0 8px 10px;
+}
+
+.btn-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 38px;
+  padding: 0 16px 0 12px;
+  border-radius: 999px;
+  background: var(--fill-strong);
+  font-size: 14px;
+  font-weight: 600;
+  transition: transform 0.15s var(--ease);
+}
+
+.btn-pill .ic {
+  width: 18px;
+  height: 18px;
+}
+
+.btn-pill.primary {
+  background: var(--primary);
+  color: var(--on-primary);
+}
+
+.btn-pill:active {
+  transform: scale(0.96);
+}
+
+.notice {
+  margin: 0 8px 10px;
+  padding: 10px 12px;
+  border-radius: var(--r-item);
+  background: var(--fill);
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text-2);
+}
+
 /* Geräte */
 .device-list .row .dev-icon {
   width: 46px;
@@ -1028,8 +1353,13 @@ button.row:active {
   }
 
   #btn-queue,
+  #btn-library,
   .side .sheet-grip,
   .side .sheet-close {
+    display: none;
+  }
+
+  .side.sheet::after {
     display: none;
   }
 

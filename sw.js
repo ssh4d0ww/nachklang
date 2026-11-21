@@ -1,6 +1,7 @@
 // Nachklang Service Worker: App-Dateien offline verfügbar machen.
-// Spotify-Anfragen gehen nie über den Cache.
-const CACHE = "nachklang-v1";
+// Immer zuerst das Netz fragen (damit Updates sofort ankommen),
+// nur ohne Verbindung aus dem Cache laden. Spotify-Anfragen gehen nie über den Cache.
+const CACHE = "nachklang-v2";
 const SHELL = [
   "./",
   "index.html",
@@ -12,6 +13,7 @@ const SHELL = [
   "js/config.js",
   "js/demo.js",
   "js/icons.js",
+  "js/library.js",
   "js/store.js",
   "manifest.webmanifest",
   "icons/icon-192.png",
@@ -20,7 +22,12 @@ const SHELL = [
 ];
 
 self.addEventListener("install", (e) => {
-  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));
+  e.waitUntil(
+    caches
+      .open(CACHE)
+      .then((c) => c.addAll(SHELL.map((u) => new Request(u, { cache: "no-cache" }))))
+      .then(() => self.skipWaiting())
+  );
 });
 
 self.addEventListener("activate", (e) => {
@@ -36,22 +43,17 @@ self.addEventListener("fetch", (e) => {
   const url = new URL(e.request.url);
   if (e.request.method !== "GET" || url.origin !== self.location.origin) return;
 
-  // Seitenaufrufe: zuerst Netz (frische Version, Login-Rückkehr), sonst Cache
-  if (e.request.mode === "navigate") {
-    e.respondWith(fetch(e.request).catch(() => caches.match("index.html")));
-    return;
-  }
-
-  // Dateien: sofort aus dem Cache, im Hintergrund aktualisieren
+  // Seitenaufrufe (navigate) dürfen keine zusätzlichen Optionen bekommen
+  const fresh = e.request.mode === "navigate" ? fetch(e.request) : fetch(e.request, { cache: "no-cache" });
   e.respondWith(
-    caches.match(e.request).then((cached) => {
-      const fresh = fetch(e.request)
-        .then((res) => {
-          if (res.ok) caches.open(CACHE).then((c) => c.put(e.request, res.clone()));
-          return res;
-        })
-        .catch(() => cached);
-      return cached || fresh;
-    })
+    fresh
+      .then((res) => {
+        if (res.ok && url.search === "") {
+          const copy = res.clone();
+          caches.open(CACHE).then((c) => c.put(e.request, copy));
+        }
+        return res;
+      })
+      .catch(async () => (await caches.match(e.request, { ignoreSearch: true })) || (e.request.mode === "navigate" ? caches.match("index.html") : Response.error()))
   );
 });
