@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0b0b0d">
+  <meta name="color-scheme" content="dark">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Nachklang">
+  <meta name="description" content="Spotify-Fernbedienung im Liner-Look">
+  <title>Nachklang</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" type="image/png" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+  <div id="backdrop" aria-hidden="true">
+    <div class="bd-layer"></div>
+    <div class="bd-layer"></div>
+    <div class="bd-shade"></div>
+  </div>
+
+  <main id="app">
+    <!-- Start / Login -->
+    <section id="login" class="screen" hidden>
+      <div class="login-card">
+        <div class="app-mark"><i data-icon="logo"></i></div>
+        <h1>Nachklang</h1>
+        <p class="lead">Deine Spotify-Fernbedienung im Liner-Look. Die Musik läuft weiter in Spotify, hier steuerst du sie.</p>
+
+        <div id="client-setup" class="client-setup" hidden>
+          <label for="client-id">Spotify Client ID</label>
+          <input id="client-id" class="field" type="text" inputmode="latin" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="z. B. 3f9c…">
+          <details class="help">
+            <summary>Woher bekomme ich die?</summary>
+            <ol>
+              <li>Auf <b>developer.spotify.com/dashboard</b> eine App anlegen (Web API anhaken).</li>
+              <li>Als Redirect URI genau diese Adresse eintragen:
+                <code id="redirect-uri"></code>
+                <button type="button" class="link-btn" id="copy-redirect">Kopieren</button>
+              </li>
+              <li>Die Client ID der App hier einfügen.</li>
+            </ol>
+          </details>
+        </div>
+
+        <div class="login-actions">
+          <button class="btn btn-primary" id="btn-login">Mit Spotify verbinden</button>
+          <button class="btn btn-glass" id="btn-demo">Demo ansehen</button>
+        </div>
+        <p class="fine embed-note" id="embed-note" hidden>Das ist die Vorschau: Hier läuft nur die Demo. Für deine echte Musik die App selbst hosten (siehe README).</p>
+        <p class="fine">Steuern braucht Spotify Premium. Es werden keine Daten gespeichert außer dem Login in diesem Browser.</p>
+      </div>
+    </section>
+
+    <!-- Player -->
+    <section id="player" class="screen" hidden>
+      <div class="layout">
+        <div class="np">
+          <header class="topbar">
+            <button class="pill" id="btn-device" aria-label="Gerät wählen">
+              <span id="device-icon"><i data-icon="device"></i></span>
+              <span id="device-name">Gerät wählen</span>
+            </button>
+            <div class="topbar-actions">
+              <span class="demo-badge" id="demo-badge" hidden>Demo</span>
+              <button class="icon-btn" id="btn-queue" aria-label="Warteschlange"><i data-icon="queue"></i></button>
+              <button class="icon-btn" id="btn-menu" aria-label="Menü"><i data-icon="more"></i></button>
+            </div>
+          </header>
+
+          <div class="cover-wrap" id="cover-wrap">
+            <img id="cover" alt="" draggable="false">
+            <div class="cover-empty" id="cover-empty"><i data-icon="logo"></i></div>
+          </div>
+
+          <div class="meta">
+            <div class="meta-text">
+              <h2 id="title">Gerade läuft nichts</h2>
+              <p id="artist">Starte Spotify oder wähle ein Gerät.</p>
+            </div>
+            <button class="icon-btn like" id="btn-like" aria-label="Zu Lieblingssongs hinzufügen" aria-pressed="false">
+              <span class="like-off"><i data-icon="heart"></i></span>
+              <span class="like-on"><i data-icon="heartFilled"></i></span>
+            </button>
+          </div>
+
+          <div class="progress" id="progress">
+            <div class="progress-track" id="progress-track" role="slider" aria-label="Position im Lied" tabindex="0" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+              <div class="progress-fill" id="progress-fill"></div>
+            </div>
+            <div class="times"><span id="t-pos">0:00</span><span id="t-dur">0:00</span></div>
+          </div>
+
+          <div class="controls">
+            <button class="ctl ctl-toggle" id="btn-shuffle" aria-label="Zufallswiedergabe" aria-pressed="false"><i data-icon="shuffle"></i></button>
+            <button class="ctl" id="btn-prev" aria-label="Zurück"><i data-icon="prev"></i></button>
+            <button class="ctl ctl-play" id="btn-play" aria-label="Abspielen">
+              <span class="when-paused"><i data-icon="play"></i></span>
+              <span class="when-playing"><i data-icon="pause"></i></span>
+            </button>
+            <button class="ctl" id="btn-next" aria-label="Weiter"><i data-icon="next"></i></button>
+            <button class="ctl ctl-toggle" id="btn-repeat" aria-label="Wiederholen" aria-pressed="false"><i data-icon="repeat"></i></button>
+          </div>
+
+          <div class="volume" id="volume-row" hidden>
+            <i data-icon="volume"></i>
+            <input type="range" id="volume" min="0" max="100" step="1" value="50" aria-label="Lautstärke">
+          </div>
+        </div>
+
+        <!-- Warteschlange / Zuletzt gehört: am Handy ein Sheet, am großen Bildschirm eine Spalte -->
+        <aside class="side sheet" id="side" aria-label="Warteschlange">
+          <div class="sheet-grip"></div>
+          <div class="side-head">
+            <div class="segmented" role="tablist">
+              <button role="tab" data-tab="queue" class="is-active" aria-selected="true">Als Nächstes</button>
+              <button role="tab" data-tab="recent" aria-selected="false">Zuletzt gehört</button>
+            </div>
+            <button class="icon-btn sheet-close" data-close aria-label="Schließen"><i data-icon="close"></i></button>
+          </div>
+          <ul class="track-list" id="list"></ul>
+        </aside>
+      </div>
+    </section>
+  </main>
+
+  <div id="scrim" hidden></div>
+
+  <section class="sheet" id="sheet-devices" aria-label="Geräte">
+    <div class="sheet-grip"></div>
+    <div class="side-head">
+      <h3>Wiedergabe auf</h3>
+      <button class="icon-btn sheet-close" data-close aria-label="Schließen"><i data-icon="close"></i></button>
+    </div>
+    <ul class="device-list" id="device-list"></ul>
+    <p class="fine sheet-note">Fehlt ein Gerät? Öffne Spotify kurz darauf, dann taucht es hier auf.</p>
+  </section>
+
+  <section class="sheet" id="sheet-menu" aria-label="Menü">
+    <div class="sheet-grip"></div>
+    <div class="side-head">
+      <h3 id="menu-title">Nachklang</h3>
+      <button class="icon-btn sheet-close" data-close aria-label="Schließen"><i data-icon="close"></i></button>
+    </div>
+    <div class="menu-list">
+      <button class="menu-item" id="btn-reload">Neu laden</button>
+      <button class="menu-item danger" id="btn-logout">Abmelden</button>
+    </div>
+    <p class="fine sheet-note">Nachklang ist ein privates Projekt und nicht mit Spotify oder Liner verbunden.</p>
+  </section>
+
+  <div id="toast" role="status" aria-live="polite"></div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
