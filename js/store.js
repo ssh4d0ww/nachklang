@@ -1,6 +1,6 @@
-// localStorage mit Rückfall: In manchen Umgebungen (privater Modus,
-// eingebettete Vorschau) ist der Speicher gesperrt. Dann merkt sich die
-// App die Werte nur, solange die Seite offen ist.
+// localStorage with a fallback: in some environments (private mode,
+// embedded previews) storage is blocked. The app then keeps values
+// only while the page is open.
 const memory = new Map();
 
 function storage() {

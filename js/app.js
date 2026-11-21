@@ -1,4 +1,4 @@
-// Nachklang – App-Logik
+// Nachklang – app logic
 import { CONFIG } from "./config.js";
 import { store } from "./store.js";
 import * as auth from "./auth.js";
@@ -59,7 +59,7 @@ const library = createLibrary({
     try {
       await api.shuffle(on, deviceId());
     } catch {
-      /* Zufall ist nur ein Extra */
+      /* shuffle is just a bonus */
     }
   },
   played: () => {
@@ -84,11 +84,11 @@ const embedded = (() => {
 const wide = window.matchMedia("(min-width: 900px) and (min-height: 560px)");
 
 let api = null;
-let state = null; // aufbereiteter Wiedergabe-Status (siehe normalize)
-let fetchedAt = 0; // wann state.progress gemessen wurde
+let state = null; // processed playback state (see normalize)
+let fetchedAt = 0; // when state.progress was measured
 let pollTimer = null;
-let pausedUntil = 0; // nach 429: Abfragen kurz aussetzen
-let quietUntil = 0; // nach eigenen Aktionen: alte Antworten nicht anzeigen
+let pausedUntil = 0; // after a 429: pause polling for a moment
+let quietUntil = 0; // after our own actions: ignore stale responses
 let pollErrors = 0;
 let likeFor = null;
 let seekMs = null;
@@ -97,7 +97,7 @@ let openSheetEl = null;
 let lastSecond = -1;
 
 // ------------------------------------------------------------------
-// Start
+// Startup
 // ------------------------------------------------------------------
 
 async function init() {
@@ -108,7 +108,7 @@ async function init() {
   try {
     if (await auth.handleRedirect()) {
       store.set(MODE_KEY, "spotify");
-      toast("Mit Spotify verbunden");
+      toast("Connected to Spotify");
     }
   } catch (e) {
     toast(e.message, 4000);
@@ -132,7 +132,7 @@ function showLogin() {
   el.clientSetup.hidden = !missing && !!CONFIG.clientId;
   el.clientId.value = auth.getClientId();
   setBackdrop(null);
-  // in einer eingebetteten Vorschau (iframe) klappt der Spotify-Login nicht
+  // Spotify login does not work inside an embedded preview (iframe)
   if (embedded) {
     el.clientSetup.hidden = true;
     $("#btn-login").hidden = true;
@@ -150,14 +150,14 @@ function startDemo() {
   api = createDemoApi();
   store.set(MODE_KEY, "demo");
   enterPlayer();
-  toast("Demo: Musik und Geräte sind nur simuliert");
+  toast("Demo: music and devices are simulated");
 }
 
 function enterPlayer() {
   el.login.hidden = true;
   el.player.hidden = false;
   el.demoBadge.hidden = api.kind !== "demo";
-  el.logout.textContent = api.kind === "demo" ? "Demo beenden" : "Abmelden";
+  el.logout.textContent = api.kind === "demo" ? "End demo" : "Log out";
   el.menuTitle.textContent = "Nachklang";
   state = null;
   likeFor = null;
@@ -171,7 +171,7 @@ function enterPlayer() {
 }
 
 // ------------------------------------------------------------------
-// Status holen
+// Fetching playback state
 // ------------------------------------------------------------------
 
 function normalize(raw) {
@@ -199,9 +199,9 @@ function normalize(raw) {
 }
 
 // ------------------------------------------------------------------
-// Letztes Lied merken: Pausiert man am iPhone, meldet Spotify nach kurzer
-// Zeit "nichts aktiv". Dann zeigt die App das letzte Lied weiter an und
-// kann es von dort fortsetzen.
+// Remember the last track: when you pause on an iPhone, Spotify reports
+// "nothing active" after a short while. The app then keeps showing the last
+// track and can resume it from there.
 // ------------------------------------------------------------------
 
 const LAST_KEY = "nk.last";
@@ -239,14 +239,14 @@ function saveSnapshot(s, force = false) {
   try {
     store.set(LAST_KEY, JSON.stringify(snap));
   } catch {
-    /* Speicher voll oder gesperrt: dann eben ohne */
+    /* storage full or blocked: carry on without it */
   }
 }
 
 function readSnapshot() {
   try {
     const snap = JSON.parse(store.get(LAST_KEY) || "null");
-    // nach einer Woche ist das letzte Lied nicht mehr interessant
+    // after a week the last track is no longer interesting
     if (!snap?.item?.uri || Date.now() - snap.at > 7 * 864e5) return null;
     return snap;
   } catch {
@@ -254,7 +254,7 @@ function readSnapshot() {
   }
 }
 
-// macht aus dem gemerkten Lied einen pausierten Status
+// turns the remembered track into a paused state
 function snapshotState(raw) {
   const snap = readSnapshot();
   if (!snap) return null;
@@ -271,7 +271,7 @@ function snapshotState(raw) {
   return s;
 }
 
-// noch nie etwas gemerkt: zuletzt gehörtes Lied von Spotify holen
+// nothing remembered yet: fetch the most recently played track from Spotify
 async function seedFromRecent() {
   if (recentTried || api?.kind !== "spotify") return;
   recentTried = true;
@@ -282,7 +282,7 @@ async function seedFromRecent() {
     store.set(LAST_KEY, JSON.stringify({ item: slimItem(last.track), progress: 0, context: last.context?.uri || null, shuffle: false, repeat: "off", device: null, at: Date.now() }));
     if (!state?.id) applyState(snapshotState(null));
   } catch {
-    /* dann bleibt es bei "Gerade läuft nichts" */
+    /* then we stay on "Nothing playing" */
   }
 }
 
@@ -298,7 +298,7 @@ async function refresh() {
   try {
     const raw = await api.playbackState();
     pollErrors = 0;
-    // eine Aktion war schneller als diese Antwort -> verwerfen
+    // an action was faster than this response -> drop it
     if (asked < quietUntil) return;
     let next = normalize(raw);
     if (next?.id) saveSnapshot(next);
@@ -337,14 +337,14 @@ function stopPolling() {
   pollTimer = null;
 }
 
-// nach einer Aktion: ein bisschen warten, dann frisch nachfragen
+// after an action: wait a little, then ask again
 function settle(delays = [500, 1500]) {
   quietUntil = Date.now() + delays[0] - 50;
   for (const d of delays) setTimeout(refresh, d);
 }
 
 // ------------------------------------------------------------------
-// Anzeigen
+// Rendering
 // ------------------------------------------------------------------
 
 function render() {
@@ -364,8 +364,8 @@ function render() {
     el.tDur.textContent = fmt(s.duration);
     document.title = `${s.name} · ${s.artists}`;
   } else {
-    el.title.textContent = "Gerade läuft nichts";
-    el.artist.textContent = s?.device ? `Bereit auf ${s.device.name}` : "Starte Spotify oder wähle ein Gerät.";
+    el.title.textContent = "Nothing playing";
+    el.artist.textContent = s?.device ? `Ready on ${s.device.name}` : "Start Spotify or pick a device.";
     setCover("");
     el.tDur.textContent = "0:00";
     el.tPos.textContent = "0:00";
@@ -373,13 +373,13 @@ function render() {
     document.title = "Nachklang";
   }
 
-  el.play.setAttribute("aria-label", s?.playing ? "Pause" : "Abspielen");
+  el.play.setAttribute("aria-label", s?.playing ? "Pause" : "Play");
   el.shuffle.setAttribute("aria-pressed", String(!!s?.shuffle));
   el.repeat.setAttribute("aria-pressed", String(!!s && s.repeat !== "off"));
   el.repeat.classList.toggle("is-one", s?.repeat === "track");
 
   const dev = s?.device;
-  el.deviceName.textContent = dev ? (s?.inactive ? `${dev.name} · pausiert` : dev.name) : "Gerät wählen";
+  el.deviceName.textContent = dev ? (s?.inactive ? `${dev.name} · paused` : dev.name) : "Choose device";
   el.deviceIcon.innerHTML = dev ? deviceIcon(dev.type) : icon("device");
   el.deviceBtn.classList.toggle("is-live", !!s?.playing);
 
@@ -413,12 +413,12 @@ function onTrackChange() {
   setBackdrop(state.cover);
   checkLiked();
   highlight();
-  // gleiches Cover (z. B. gleiches Album): Wisch-Animation trotzdem abschließen
+  // same cover (e.g. same album): still finish the swipe animation
   if (swipeEnter && el.cover.dataset.src === state.cover) coverEnter();
   if ((wide.matches || openSheetEl === el.side) && tab !== "library") loadList();
 }
 
-// das laufende Lied in allen Listen markieren
+// mark the current track in all lists
 function highlight() {
   const uri = state?.uri;
   for (const row of el.side.querySelectorAll(".row[data-uri]")) row.classList.toggle("is-current", !!uri && row.dataset.uri === uri);
@@ -452,7 +452,7 @@ function setBackdrop(url) {
     const rootStyle = document.documentElement.style;
     if (rgb) {
       rootStyle.setProperty("--tint", rgb.join(" "));
-      // Farbe ganz unten im Hintergrund: auch für den Streifen unter dem Home-Strich
+      // color at the very bottom of the background, also used for the strip below the home indicator
       rootStyle.setProperty("--bottom", rgb.map((v) => Math.round(7 + v * 0.18)).join(" "));
     } else {
       rootStyle.removeProperty("--tint");
@@ -461,7 +461,7 @@ function setBackdrop(url) {
   });
 }
 
-// läuft mit der Bildwiederholrate: Fortschritt flüssig weiterzählen
+// runs every frame: advance the progress smoothly
 function tick() {
   requestAnimationFrame(tick);
   if (!state?.id) return;
@@ -474,7 +474,7 @@ function tick() {
     el.tPos.textContent = fmt(pos);
     el.track.setAttribute("aria-valuenow", String(Math.round(ratio * 100)));
   }
-  // Lied zu Ende -> gleich nachfragen statt auf die nächste Runde zu warten
+  // track finished -> ask right away instead of waiting for the next poll
   if (state.playing && pos >= state.duration && performance.now() - fetchedAt > 900) {
     fetchedAt = performance.now();
     setTimeout(refresh, 300);
@@ -496,7 +496,7 @@ function fmt(ms) {
 }
 
 // ------------------------------------------------------------------
-// Aktionen
+// Actions
 // ------------------------------------------------------------------
 
 const deviceId = () => state?.device?.id;
@@ -519,7 +519,7 @@ async function togglePlay() {
   }
 }
 
-// gemerktes Lied an derselben Stelle fortsetzen, am liebsten auf demselben Gerät
+// resume the remembered track at the same position, preferably on the same device
 async function resume(targetId) {
   const s = state;
   if (!s?.inactive) return;
@@ -530,7 +530,7 @@ async function resume(targetId) {
       const dev = list.find((d) => d.id === s.device?.id) || list.find((d) => d.is_active) || (list.length === 1 ? list[0] : null);
       if (!dev) {
         openDevices({ resume: true });
-        if (!list.length) toast("Kein Gerät erreichbar. Öffne Spotify kurz, dann geht es weiter.", 3500);
+        if (!list.length) toast("No device reachable. Open Spotify briefly, then try again.", 3500);
         return;
       }
       id = dev.id;
@@ -544,7 +544,7 @@ async function resume(targetId) {
     s.playing = false;
     render();
     if (e.status === 404 || e.reason === "NO_ACTIVE_DEVICE") {
-      toast("Das Gerät schläft gerade. Wähl ein anderes oder öffne Spotify kurz.", 3800);
+      toast("That device is asleep. Pick another one or open Spotify briefly.", 3800);
       openDevices({ resume: true });
       return;
     }
@@ -559,7 +559,7 @@ async function playResume(id, s) {
     try {
       return await api.play(id, { context_uri: s.contextUri, offset: { uri: s.uri }, position_ms });
     } catch (e) {
-      // Kontext nicht (mehr) abspielbar: nur das Lied selbst
+      // context not playable (anymore): play just the track
       if (e.status === 404 && e.reason === "NO_ACTIVE_DEVICE") throw e;
       if (![400, 403, 404].includes(e.status)) throw e;
     }
@@ -609,7 +609,7 @@ async function seekTo(ms) {
   state.progress = ms;
   fetchedAt = performance.now();
   if (state.inactive) {
-    // nichts aktiv: Stelle nur merken, beim Fortsetzen geht es dort weiter
+    // nothing active: only remember the position, resuming starts there
     const snap = readSnapshot();
     if (snap) store.set(LAST_KEY, JSON.stringify({ ...snap, progress: Math.round(ms) }));
     return;
@@ -632,7 +632,7 @@ async function checkLiked() {
     const [saved] = await api.isSaved(uri);
     if (likeFor === uri) el.like.setAttribute("aria-pressed", String(!!saved));
   } catch {
-    /* nicht schlimm: Herz bleibt leer */
+    /* not a problem: the heart stays empty */
   }
 }
 
@@ -643,7 +643,7 @@ async function toggleLike() {
   el.like.setAttribute("aria-pressed", String(!saved));
   try {
     await (saved ? api.unsave(uri) : api.save(uri));
-    toast(saved ? "Aus Lieblingssongs entfernt" : "Zu Lieblingssongs hinzugefügt");
+    toast(saved ? "Removed from Liked Songs" : "Added to Liked Songs");
   } catch (e) {
     el.like.setAttribute("aria-pressed", String(saved));
     handleError(e);
@@ -673,8 +673,8 @@ function paintRange(input) {
   input.style.setProperty("--pct", `${input.value}%`);
 }
 
-// Cover wischen: nach links = nächstes Lied, nach rechts = vorheriges
-let swipeEnter = 0; // Richtung, aus der das nächste Cover hereinkommt
+// Swipe the cover: left = next track, right = previous
+let swipeEnter = 0; // direction the next cover slides in from
 let swipeTimer = null;
 
 function bindCoverSwipe() {
@@ -719,7 +719,7 @@ function bindCoverSwipe() {
       el.cover.style.opacity = "0";
       swipeEnter = dir;
       skip(dir);
-      // falls das neue Lied auf sich warten lässt: altes Cover zurückholen
+      // if the new track takes too long: bring the old cover back
       clearTimeout(swipeTimer);
       swipeTimer = setTimeout(() => coverEnter(), 2500);
     } else {
@@ -731,7 +731,7 @@ function bindCoverSwipe() {
   wrap.addEventListener("pointercancel", end);
 }
 
-// neues Cover von der Seite hereingleiten lassen
+// slide the new cover in from the side
 function coverEnter() {
   clearTimeout(swipeTimer);
   if (!swipeEnter) return;
@@ -749,7 +749,7 @@ function coverEnter() {
   );
 }
 
-// Fortschrittsbalken ziehen
+// Dragging the progress bar
 function bindSeek() {
   const toMs = (clientX) => {
     const r = el.track.getBoundingClientRect();
@@ -785,7 +785,7 @@ function bindSeek() {
 }
 
 // ------------------------------------------------------------------
-// Listen: Warteschlange und zuletzt gehört
+// Lists: queue and recently played
 // ------------------------------------------------------------------
 
 function trackRow(item, { button = false, meta = "" } = {}) {
@@ -817,10 +817,10 @@ async function loadList() {
     if (tab === "queue") {
       const q = await api.queue();
       const items = (q?.queue || []).filter(Boolean).slice(0, 40);
-      if (q?.currently_playing) html += `<li class="list-label">Läuft gerade</li>` + trackRow(q.currently_playing, { meta: fmt(q.currently_playing.duration_ms) });
+      if (q?.currently_playing) html += `<li class="list-label">Now playing</li>` + trackRow(q.currently_playing, { meta: fmt(q.currently_playing.duration_ms) });
       html += items.length
-        ? `<li class="list-label">Als Nächstes</li>` + items.map((t) => trackRow(t, { meta: fmt(t.duration_ms) })).join("")
-        : `<li class="list-empty">Die Warteschlange ist leer.</li>`;
+        ? `<li class="list-label">Up next</li>` + items.map((t) => trackRow(t, { meta: fmt(t.duration_ms) })).join("")
+        : `<li class="list-empty">The queue is empty.</li>`;
     } else {
       const r = await api.recent();
       const seen = new Set();
@@ -828,26 +828,26 @@ async function loadList() {
       recentContext = new Map(items.map((i) => [i.track.uri, i.context]));
       html = items.length
         ? items.map((i) => trackRow(i.track, { button: true, meta: ago(i.played_at) })).join("")
-        : `<li class="list-empty">Noch nichts gehört.</li>`;
+        : `<li class="list-empty">Nothing played yet.</li>`;
     }
     if (token === listToken) {
       el.list.innerHTML = html;
       highlight();
     }
   } catch (e) {
-    if (token === listToken) el.list.innerHTML = `<li class="list-empty">${esc(e.message || "Konnte nicht geladen werden.")}</li>`;
+    if (token === listToken) el.list.innerHTML = `<li class="list-empty">${esc(e.message || "Could not be loaded.")}</li>`;
   }
 }
 
 let recentContext = new Map();
 
-// startet Wiedergabe; ohne aktives Gerät wird das erste verfügbare genommen
+// starts playback; without an active device the first available one is used
 async function playBody(body) {
   let id = deviceId();
   if (!id) {
     const d = await api.devices();
     const target = d?.devices?.find((x) => x.is_active) || d?.devices?.[0];
-    if (!target) throw Object.assign(new Error("Kein Gerät gefunden. Öffne Spotify auf einem Gerät."), { status: 404 });
+    if (!target) throw Object.assign(new Error("No device found. Open Spotify on a device."), { status: 404 });
     id = target.id;
   }
   await api.play(id, body);
@@ -867,15 +867,15 @@ async function playFromList(uri) {
 
 function ago(iso) {
   const min = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
-  if (min < 1) return "gerade";
-  if (min < 60) return `${min} min`;
+  if (min < 1) return "now";
+  if (min < 60) return `${min}m`;
   const h = Math.round(min / 60);
-  if (h < 24) return `${h} h`;
-  return `${Math.round(h / 24)} T`;
+  if (h < 24) return `${h}h`;
+  return `${Math.round(h / 24)}d`;
 }
 
 // ------------------------------------------------------------------
-// Geräte
+// Devices
 // ------------------------------------------------------------------
 
 let resumeMode = false;
@@ -893,11 +893,11 @@ async function openDevices(opts = {}) {
             (x) => `<li><button class="row${x.is_active ? " is-active" : ""}" data-device="${esc(x.id)}">
               <span class="dev-icon">${deviceIcon(x.type)}</span>
               <span class="row-text"><div class="row-title">${esc(x.name)}</div>
-              <div class="row-sub">${x.is_active ? (state?.playing ? "Spielt gerade" : "Aktiv") : typeLabel(x.type)}</div></span>
+              <div class="row-sub">${x.is_active ? (state?.playing ? "Playing" : "Active") : typeLabel(x.type)}</div></span>
             </button></li>`
           )
           .join("")
-      : `<li class="list-empty">Kein Gerät gefunden.<br>Öffne Spotify auf deinem Handy oder PC.</li>`;
+      : `<li class="list-empty">No device found.<br>Open Spotify on your phone or computer.</li>`;
   } catch (e) {
     el.deviceList.innerHTML = `<li class="list-empty">${esc(e.message)}</li>`;
   }
@@ -909,7 +909,7 @@ async function chooseDevice(id) {
   if (id === deviceId()) return;
   try {
     await api.transfer(id, state?.playing ?? true);
-    toast("Wiedergabe gewechselt");
+    toast("Playback moved");
     settle([600, 1600, 3000]);
   } catch (e) {
     handleError(e);
@@ -917,15 +917,15 @@ async function chooseDevice(id) {
 }
 
 function typeLabel(type) {
-  const map = { Computer: "Computer", Smartphone: "Handy", Speaker: "Lautsprecher", TV: "Fernseher", Tablet: "Tablet", CastAudio: "Cast-Lautsprecher", CastVideo: "Chromecast", AVR: "Receiver", GameConsole: "Konsole", Automobile: "Auto" };
-  return map[type] || type || "Gerät";
+  const map = { Computer: "Computer", Smartphone: "Phone", Speaker: "Speaker", TV: "TV", Tablet: "Tablet", CastAudio: "Cast speaker", CastVideo: "Chromecast", AVR: "Receiver", GameConsole: "Console", Automobile: "Car" };
+  return map[type] || type || "Device";
 }
 
 // ------------------------------------------------------------------
-// Sheets, Toast, Fehler
+// Sheets, toast, errors
 // ------------------------------------------------------------------
 
-// Reiter im Seitenbereich: Bibliothek, Als Nächstes, Verlauf
+// Tabs in the side panel: Library, Up next, History
 function showTab(name) {
   tab = name;
   for (const b of document.querySelectorAll(".segmented button")) {
@@ -955,7 +955,7 @@ function closeSheet() {
   document.documentElement.classList.remove("sheet-open");
 }
 
-// Sheet nach unten wischen zum Schließen
+// Swipe a sheet down to close it
 function bindSheetSwipe(sheet) {
   let startY = null;
   let dy = 0;
@@ -1009,18 +1009,18 @@ function handleError(e, fromPoll = false) {
     return;
   }
   if (fromPoll) {
-    // beim Abfragen nur melden, wenn es mehrmals hintereinander schiefgeht
-    if (++pollErrors === 3) toast(e.message || "Verbindung hakt.", 3000);
+    // while polling, only report errors that happen several times in a row
+    if (++pollErrors === 3) toast(e.message || "Connection trouble.", 3000);
     return;
   }
-  toast(e.message || "Das hat nicht geklappt.", 3000);
+  toast(e.message || "That did not work.", 3000);
   if (e.status === 404 || e.reason === "NO_ACTIVE_DEVICE") openDevices();
 }
 
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 
 // ------------------------------------------------------------------
-// Ereignisse
+// Events
 // ------------------------------------------------------------------
 
 function bindEvents() {
@@ -1030,7 +1030,7 @@ function bindEvents() {
     if (!auth.getClientId()) {
       el.clientSetup.hidden = false;
       el.clientId.focus();
-      toast("Bitte zuerst die Client ID eintragen.");
+      toast("Please enter your Client ID first.");
       return;
     }
     try {
@@ -1043,9 +1043,9 @@ function bindEvents() {
   $("#copy-redirect").addEventListener("click", async () => {
     try {
       await navigator.clipboard.writeText(CONFIG.redirectUri);
-      toast("Redirect URI kopiert");
+      toast("Redirect URI copied");
     } catch {
-      toast("Kopieren ging nicht – bitte markieren.");
+      toast("Copy failed, please select it manually.");
     }
   });
 
@@ -1117,7 +1117,7 @@ function bindEvents() {
 function registerServiceWorker() {
   try {
     if (!("serviceWorker" in navigator) || !window.isSecureContext || embedded) return;
-    // wenn eine neue Version übernimmt: einmal neu laden, damit alle Dateien zusammenpassen
+    // when a new version takes over: reload once so all files match
     const hadController = !!navigator.serviceWorker.controller;
     let reloaded = false;
     navigator.serviceWorker.addEventListener("controllerchange", () => {
@@ -1127,7 +1127,7 @@ function registerServiceWorker() {
     });
     navigator.serviceWorker.register("sw.js", { updateViaCache: "none" }).catch(() => {});
   } catch {
-    /* z. B. in einer gesperrten Vorschau: ohne Offline-Cache weiter */
+    /* e.g. in a locked-down preview: continue without offline cache */
   }
 }
 

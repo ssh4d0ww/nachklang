@@ -1,4 +1,4 @@
-/* Nachklang – Spotify-Fernbedienung im Liner-Look */
+/* Nachklang – a Spotify remote in the Liner look */
 
 :root {
   --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
@@ -19,7 +19,7 @@
   --r-item: 12px;
   --r-panel: 20px;
   --tint: 40 40 46;
-  /* Farbe ganz unten im Hintergrund (wird aus dem Cover berechnet) */
+  /* color at the very bottom of the background (computed from the cover) */
   --bottom: 11 11 13;
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
   --safe-top: env(safe-area-inset-top, 0px);
@@ -42,9 +42,9 @@ body {
   overscroll-behavior: none;
 }
 
-/* iOS 26 lässt in Home-Bildschirm-Apps unten einen Streifen frei, in dem nur
-   der Seitenhintergrund zu sehen ist. Er bekommt deshalb die Farbe, mit der
-   der Cover-Hintergrund unten endet. */
+/* iOS 26 leaves a strip at the bottom of home screen web apps where only the
+   page background shows. It gets the same color the cover background ends
+   with at the bottom. */
 html {
   background-color: rgb(var(--bottom));
   transition: background-color 1s var(--ease);
@@ -57,7 +57,7 @@ html.sheet-open {
 
 body {
   min-height: 100dvh;
-  /* kein eigener Hintergrund, sonst verdeckt er das Cover dahinter */
+  /* no background of its own, otherwise it would hide the cover behind it */
   background: transparent;
 }
 
@@ -87,7 +87,7 @@ button:disabled {
 }
 
 /* ---------------------------------------------------------------
-   Hintergrund: unscharfes Cover, eingefärbt
+   Background: blurred, tinted cover
    --------------------------------------------------------------- */
 
 #backdrop {
@@ -124,7 +124,7 @@ button:disabled {
 }
 
 /* ---------------------------------------------------------------
-   Allgemeine Bausteine
+   Building blocks
    --------------------------------------------------------------- */
 
 .screen {
@@ -522,7 +522,7 @@ button:disabled {
   }
 }
 
-/* Fortschritt */
+/* Progress */
 .progress {
   margin-top: 22px;
   touch-action: none;
@@ -539,7 +539,7 @@ button:disabled {
   outline: none;
 }
 
-/* größere Trefferfläche ohne die Optik zu ändern */
+/* bigger touch target without changing the look */
 .progress-track::before {
   content: "";
   position: absolute;
@@ -574,7 +574,7 @@ button:disabled {
   color: var(--text);
 }
 
-/* Steuerung */
+/* Controls */
 .controls {
   display: grid;
   grid-template-columns: 1fr 1fr auto 1fr 1fr;
@@ -617,7 +617,7 @@ button:disabled {
   color: var(--text);
 }
 
-/* kleiner roter Punkt wie bei Liner */
+/* small red dot like in Liner */
 .ctl-toggle[aria-pressed="true"]::after {
   content: "";
   position: absolute;
@@ -670,7 +670,7 @@ button:disabled {
   display: none;
 }
 
-/* nichts aktiv, aber letztes Lied bekannt: nur Abspielen, Spulen und Herz */
+/* nothing active but the last track is known: only play, seek and like */
 .is-inactive .controls .ctl:not(.ctl-play) {
   opacity: 0.3;
   pointer-events: none;
@@ -687,7 +687,7 @@ button:disabled {
   pointer-events: none;
 }
 
-/* Lautstärke */
+/* Volume */
 .volume {
   display: flex;
   align-items: center;
@@ -754,7 +754,7 @@ input[type="range"]::-moz-range-thumb {
 }
 
 /* ---------------------------------------------------------------
-   Sheets (Warteschlange, Geräte, Menü)
+   Sheets (queue, devices, menu)
    --------------------------------------------------------------- */
 
 #scrim {
@@ -794,7 +794,7 @@ input[type="range"]::-moz-range-thumb {
   transition: transform 0.42s var(--ease), visibility 0s linear 0.42s;
 }
 
-/* verlängert das Sheet nach unten, falls iOS darunter Platz lässt */
+/* extends the sheet downwards in case iOS leaves space below it */
 .sheet::after {
   content: "";
   position: absolute;
@@ -969,7 +969,7 @@ button.row:active {
   }
 }
 
-/* Seitenbereich: feste Höhe am Handy, Inhalte scrollen innen */
+/* side panel: fixed height on phones, contents scroll inside */
 .side.sheet {
   height: 88dvh;
 }
@@ -1263,7 +1263,7 @@ button.row:active {
   color: var(--text-2);
 }
 
-/* Geräte */
+/* Devices */
 .device-list .row .dev-icon {
   width: 46px;
   height: 46px;
@@ -1284,7 +1284,7 @@ button.row:active {
   color: var(--accent);
 }
 
-/* Menü */
+/* Menu */
 .menu-list {
   display: grid;
   gap: 6px;
@@ -1339,7 +1339,7 @@ button.row:active {
 }
 
 /* ---------------------------------------------------------------
-   Großer Bildschirm (Tablet / PC): Warteschlange als zweite Spalte
+   Large screens (tablet / computer): side panel as a second column
    --------------------------------------------------------------- */
 
 @media (min-width: 900px) and (min-height: 560px) {

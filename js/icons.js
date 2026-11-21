@@ -1,4 +1,4 @@
-// Eigene, schlichte Linien-Icons (24×24)
+// Custom, simple line icons (24×24)
 const S = 'fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"';
 
 const ICONS = {
@@ -40,7 +40,7 @@ export function deviceIcon(type) {
   return icon("device");
 }
 
-// alle <i data-icon="name"> im Dokument durch SVGs ersetzen
+// replace every <i data-icon="name"> in the document with an SVG
 export function hydrateIcons(root = document) {
   for (const el of root.querySelectorAll("i[data-icon]")) {
     el.outerHTML = icon(el.dataset.icon, el.className);

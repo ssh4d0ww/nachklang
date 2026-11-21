@@ -1,111 +1,114 @@
 # Nachklang
 
-**Spotify-Fernbedienung im Liner-Look: eine installierbare Web-App (PWA) fürs iPhone, für Android und den PC.**
-*A Spotify remote control web app (PWA) with a glassy, cover-tinted UI, built on the Spotify Web API. No framework, no build step, no backend.*
+**A Spotify remote control in the Liner look: an installable web app (PWA) for iPhone, Android and desktop.**
+Built on the Spotify Web API with a glassy, cover-tinted interface. No framework, no build step, no backend.
 
-**Live:** https://ssh4d0ww.github.io/nachklang/ (mit „Demo ansehen“ auch ohne Spotify-Konto ausprobierbar)
+**Live:** https://ssh4d0ww.github.io/nachklang/ (tap “Try the demo” to use it without a Spotify account)
 
 <p>
-  <img src="docs/screenshots/player.jpg" width="200" alt="Player mit unscharfem, eingefärbtem Cover-Hintergrund">
-  <img src="docs/screenshots/library.jpg" width="200" alt="Bibliothek mit Lieblingssongs, Playlists und Alben">
-  <img src="docs/screenshots/playlist.jpg" width="200" alt="Playlist-Ansicht mit Abspielen und Zufall">
-  <img src="docs/screenshots/search.jpg" width="200" alt="Suche nach Songs, Künstlern und Alben">
+  <img src="docs/screenshots/player.jpg" width="200" alt="Player with a blurred, tinted cover background">
+  <img src="docs/screenshots/library.jpg" width="200" alt="Library with Liked Songs, playlists and albums">
+  <img src="docs/screenshots/playlist.jpg" width="200" alt="Playlist view with play and shuffle">
+  <img src="docs/screenshots/search.jpg" width="200" alt="Search for songs, artists and albums">
 </p>
 
-<img src="docs/screenshots/desktop.jpg" width="820" alt="Zweispaltige Ansicht am PC">
+<img src="docs/screenshots/desktop.jpg" width="820" alt="Two-column layout on desktop">
 
-<sub>Screenshots aus dem Demo-Modus: Titel, Künstler und Cover sind erfunden.</sub>
+<sub>Screenshots from demo mode: titles, artists and covers are made up.</sub>
 
-## Worum es geht
+## What it is
 
-Die offizielle Spotify-App lässt sich auf dem Handy nicht umgestalten. Nachklang ist deshalb eine eigene Oberfläche, die Spotify fernsteuert: Die Musik läuft weiter in der Spotify-App (am Handy, PC oder Lautsprecher), Nachklang zeigt und steuert sie in einem ruhigeren Design. Das Design ist von der Liner-Desktop-App inspiriert: Glasflächen, das Cover unscharf als Hintergrund und eine aus dem Cover berechnete Grundfarbe.
+The official Spotify app can't be restyled on a phone. Nachklang is a separate interface that remote-controls Spotify: the music keeps playing in the Spotify app (on your phone, computer or speaker), and Nachklang shows and controls it with a calmer design. The look is inspired by the Liner desktop app: glass surfaces, the blurred cover as background, and a base color computed from the cover.
 
-## Funktionen
+## Features
 
-- **Player:** großes Cover, Play/Pause, vor/zurück, Spulen durch Ziehen, Zufall, Wiederholen (aus / alles / ein Lied), Lautstärke
-- **Wischen:** Cover nach links wischen = nächstes Lied, nach rechts = vorheriges
-- **Bibliothek:** Lieblingssongs, eigene Playlists und gespeicherte Alben durchblättern und abspielen, auch per Zufall
-- **Suche:** Songs, Künstler, Alben und Playlists; Künstlerseite mit Alben und Singles
-- **Warteschlange:** anzeigen und Lieder hinzufügen (+), dazu der Verlauf der zuletzt gehörten Lieder
-- **Geräte:** Wiedergabe zwischen Handy, PC und Lautsprechern wechseln (Spotify Connect)
-- **Lieblingssongs:** Herz zum Speichern und Entfernen
-- **Installierbar:** läuft vom Home-Bildschirm aus im Vollbild, die App-Hülle funktioniert auch offline
-- **Demo-Modus:** komplett bedienbar ohne Spotify-Konto
-- **Responsiv:** am Handy Sheets von unten, am großen Bildschirm zweispaltig
+- **Player:** large cover, play/pause, previous/next, seek by dragging, shuffle, repeat (off / all / one), volume
+- **Swipe:** swipe the cover left for the next track, right for the previous one
+- **Pause and resume:** after pausing, the last track stays on screen and resumes at the same position, even when Spotify has gone idle
+- **Library:** browse and play Liked Songs, your playlists and saved albums, including shuffle
+- **Search:** songs, artists, albums and playlists; artist pages with albums and singles
+- **Queue:** see what's up next and add tracks (+), plus a history of recently played tracks
+- **Devices:** move playback between phone, computer and speakers (Spotify Connect)
+- **Liked Songs:** save and remove tracks with the heart
+- **Installable:** runs full screen from the home screen, and the app shell works offline
+- **Demo mode:** fully usable without a Spotify account
+- **Responsive:** bottom sheets on phones, two columns on large screens
 
-## Technik
+## Tech
 
-| Bereich | Umsetzung |
+| Area | Approach |
 |---|---|
-| Oberfläche | HTML, CSS, JavaScript (ES-Module), keine Bibliotheken |
-| Login | OAuth 2.0 Authorization Code mit PKCE direkt im Browser, Token-Erneuerung automatisch |
-| Daten | Spotify Web API; Status alle 2 s abfragen, dazwischen läuft der Fortschritt lokal weiter |
-| Bedienung | optimistische Updates: Aktionen sofort anzeigen, danach mit Spotify abgleichen |
-| Offline | Service Worker mit „Netz zuerst, sonst Cache“, damit Updates sofort ankommen |
+| UI | HTML, CSS, JavaScript (ES modules), no libraries |
+| Login | OAuth 2.0 Authorization Code with PKCE in the browser, automatic token refresh |
+| Data | Spotify Web API; playback state is polled every 2 s and progress advances locally in between |
+| Interaction | optimistic updates: actions show immediately and are reconciled with Spotify afterwards |
+| Offline | service worker with “network first, cache as fallback”, so updates arrive immediately |
 | Hosting | GitHub Pages |
 
 ```mermaid
 flowchart LR
-  UI["Oberfläche<br/>app.js · library.js"] --> API["api.js<br/>Spotify Web API"]
-  UI --> DEMO["demo.js<br/>simulierte API"]
-  API --> AUTH["auth.js<br/>PKCE-Login"]
+  UI["UI<br/>app.js · library.js"] --> API["api.js<br/>Spotify Web API"]
+  UI --> DEMO["demo.js<br/>simulated API"]
+  API --> AUTH["auth.js<br/>PKCE login"]
   API --> SP[("Spotify")]
-  SP --> APP["Spotify-App<br/>spielt die Musik"]
+  SP --> APP["Spotify app<br/>plays the music"]
 ```
 
-**Ein paar Entscheidungen im Detail:**
+**Some decisions in detail:**
 
-- **Kein Framework, kein Build-Schritt:** Das Projekt bleibt klein, lädt schnell und läuft direkt von GitHub Pages.
-- **Demo-Modus mit demselben Datenformat:** `demo.js` liefert Objekte wie die echte API. Die Oberfläche merkt keinen Unterschied, und alles lässt sich ohne Konto testen.
-- **API-Änderungen von Februar 2026 berücksichtigt:** Playlist-Inhalte kommen über `/playlists/{id}/items`, Lieblingssongs werden über `/me/library` gespeichert, die Suche liefert höchstens 10 Treffer pro Typ. Fremde Playlists zeigt Spotify nicht mehr im Detail; Nachklang erklärt das und spielt sie trotzdem ab.
-- **iOS-Eigenheiten:** sichere Bereiche (Notch, Home-Strich), getrennter Speicher zwischen Safari und Home-Bildschirm-App, und ein Rückfall für den freien Streifen unten, den iOS 26 in Web-Apps lässt.
+- **No framework, no build step:** the project stays small, loads fast and runs straight from GitHub Pages.
+- **Demo mode with the same data format:** `demo.js` returns objects shaped like the real API. The UI can't tell the difference, so everything can be tested without an account.
+- **Handles the February 2026 Spotify API changes:** playlist contents come from `/playlists/{id}/items`, Liked Songs are saved via `/me/library`, and search returns at most 10 results per type. Spotify no longer shows the contents of playlists you don't own; Nachklang explains this and still plays them.
+- **Resuming after a pause:** on iPhone, Spotify reports “nothing active” shortly after pausing. Nachklang remembers the last track, position and context and resumes on the same device; if that device is asleep, it offers the device picker and a link to open Spotify.
+- **iOS details:** safe areas (notch, home indicator), separate storage for Safari and home screen apps, and a fallback for the empty strip iOS 26 leaves at the bottom of web apps.
 
-## Aufbau
+## Project structure
 
 ```
-index.html            Aufbau der Seite
-css/app.css           Design (Glas, Sheets, Layout für Handy und PC)
-js/app.js             Zustand, Player, Geräte, Warteschlange, Wischgesten
-js/library.js         Bibliothek, Playlists, Alben, Künstler, Suche
-js/api.js             Spotify Web API (nur die benötigten Endpunkte)
-js/auth.js            Login mit PKCE, Token speichern und erneuern
-js/demo.js            Simulation für den Demo-Modus
-js/color.js           Grundfarbe aus dem Cover
-js/icons.js           eigene Linien-Icons
-js/store.js           Speicher mit Rückfall, wenn localStorage gesperrt ist
-js/config.js          Client ID, Redirect URI, Berechtigungen
-sw.js                 Service Worker
-manifest.webmanifest  App-Name, Icons, Vollbild
+index.html            page structure
+css/app.css           styles (glass, sheets, phone and desktop layouts)
+js/app.js             state, player, devices, queue, swipe gestures, resume
+js/library.js         library, playlists, albums, artists, search
+js/api.js             Spotify Web API (only the endpoints needed)
+js/auth.js            PKCE login, storing and refreshing tokens
+js/demo.js            simulation for demo mode
+js/color.js           base color from the cover
+js/icons.js           custom line icons
+js/store.js           storage with a fallback when localStorage is blocked
+js/config.js          Client ID, Redirect URI, scopes
+sw.js                 service worker
+manifest.webmanifest  app name, icons, full screen
 ```
 
-## Selbst einrichten
+## Run it yourself
 
-1. **Spotify-App anlegen:** Auf developer.spotify.com/dashboard → „Create app“, als API die **Web API** wählen.
-2. **Redirect URI eintragen:** Das ist genau die Adresse, unter der Nachklang läuft, mit `/` am Ende, zum Beispiel `https://DEINNAME.github.io/nachklang/`. Lokal geht `http://127.0.0.1:8080/`; `localhost` lässt Spotify nicht zu.
-3. **Client ID:** Aus dem Dashboard kopieren und beim ersten Start einfügen, oder fest in `js/config.js` eintragen. Ein Client Secret ist nicht nötig.
-4. **Entwicklungsmodus:** Der App-Besitzer braucht Spotify Premium. Bis zu fünf weitere Personen lassen sich im Dashboard unter „User Management“ freischalten.
+1. **Create a Spotify app:** go to developer.spotify.com/dashboard → “Create app” and choose the **Web API**.
+2. **Add a Redirect URI:** exactly the address Nachklang runs at, with a trailing `/`, e.g. `https://YOURNAME.github.io/nachklang/`. Locally `http://127.0.0.1:8080/` works; Spotify does not allow `localhost`.
+3. **Client ID:** copy it from the dashboard and paste it on first start, or set it in `js/config.js`. No client secret is needed.
+4. **Development mode:** the app owner needs Spotify Premium. Up to five more people can be added in the dashboard under “User Management”.
 
-**Lokal starten:**
+**Run locally:**
 
 ```
 python -m http.server 8080 --bind 127.0.0.1
 ```
 
-**Aufs iPhone:** Die Adresse in Safari öffnen → Teilen → „Zum Home-Bildschirm“. Danach in der installierten App einloggen.
+**On iPhone:** open the address in Safari → Share → “Add to Home Screen”. Then log in inside the installed app.
 
-## Grenzen
+## Limitations
 
-- Steuern geht nur mit Spotify Premium.
-- Lieder in der Warteschlange lassen sich nicht direkt anspringen oder entfernen, dafür gibt es keinen Endpunkt.
-- Manche Geräte, zum Beispiel iPhones, erlauben keine Lautstärke von außen.
-- Nachklang spielt selbst keine Musik ab, es ist die Fernbedienung.
+- Controlling playback requires Spotify Premium.
+- Tracks in the queue can't be jumped to or removed; there is no endpoint for that.
+- Some devices, such as iPhones, don't allow remote volume control.
+- When iOS fully suspends the Spotify app after a long pause, nothing can wake it remotely; open Spotify briefly and resume from Nachklang.
+- Nachklang does not play audio itself; it is the remote.
 
-## Nächste Ideen
+## Ideas
 
-- TypeScript und automatische Tests (z. B. Vitest), Prüfung mit GitHub Actions
-- Songtext-Ansicht und Animationen beim Liedwechsel
-- Mehr Gesten, z. B. langes Drücken auf ein Lied für weitere Optionen
+- TypeScript and automated tests (e.g. Vitest), checks with GitHub Actions
+- Lyrics view and animations when the track changes
+- More gestures, e.g. long-press a track for more options
 
 ---
 
-Entstanden in Zusammenarbeit mit Claude (Anthropic). Privates Lernprojekt, nicht mit Spotify oder Liner verbunden. Lizenz: [MIT](LICENSE).
+Built with help from Claude (Anthropic). A personal learning project, not affiliated with Spotify or Liner. License: [MIT](LICENSE).

@@ -1,5 +1,5 @@
-// Dünne Hülle um die Spotify Web API (nur die Teile, die Nachklang braucht).
-// Steuer-Befehle (Play, Pause, Skip ...) brauchen Spotify Premium.
+// Thin wrapper around the Spotify Web API (only the parts Nachklang needs).
+// Playback commands (play, pause, skip ...) require Spotify Premium.
 import { getAccessToken, AuthError } from "./auth.js";
 
 const BASE = "https://api.spotify.com/v1";
@@ -30,14 +30,14 @@ async function request(method, path, { query, body } = {}, retried = false) {
       body: body ? JSON.stringify(body) : undefined,
     });
   } catch {
-    throw new ApiError(0, "Keine Verbindung zu Spotify.");
+    throw new ApiError(0, "No connection to Spotify.");
   }
 
   if (res.status === 401 && !retried) return request(method, path, { query, body }, true);
-  if (res.status === 401) throw new AuthError("Bitte neu mit Spotify verbinden.");
+  if (res.status === 401) throw new AuthError("Please reconnect to Spotify.");
   if (res.status === 429) {
     const wait = Number(res.headers.get("Retry-After")) || 5;
-    throw new ApiError(429, "Zu viele Anfragen – kurz Pause.", "RATE_LIMIT", wait);
+    throw new ApiError(429, "Too many requests, pausing briefly.", "RATE_LIMIT", wait);
   }
   if (res.status === 204 || res.status === 202) return null;
 
@@ -56,11 +56,11 @@ async function request(method, path, { query, body } = {}, retried = false) {
 }
 
 function friendlyMessage(status, reason, fallback) {
-  if (reason === "NO_ACTIVE_DEVICE" || status === 404) return "Kein aktives Gerät. Wähl eins aus.";
-  if (reason === "PREMIUM_REQUIRED") return "Dafür braucht es Spotify Premium.";
-  if (reason === "VOLUME_CONTROL_DISALLOW") return "Dieses Gerät erlaubt keine Lautstärke von außen.";
-  if (status === 403) return "Das geht auf diesem Gerät gerade nicht.";
-  return fallback || `Spotify-Fehler ${status}`;
+  if (reason === "NO_ACTIVE_DEVICE" || status === 404) return "No active device. Pick one.";
+  if (reason === "PREMIUM_REQUIRED") return "This requires Spotify Premium.";
+  if (reason === "VOLUME_CONTROL_DISALLOW") return "This device does not allow remote volume control.";
+  if (status === 403) return "That is not possible on this device right now.";
+  return fallback || `Spotify error ${status}`;
 }
 
 const uriList = (uris) => (Array.isArray(uris) ? uris : [uris]).join(",");
@@ -84,10 +84,10 @@ export function createSpotifyApi() {
     recent: () => request("GET", "/me/player/recently-played", { query: { limit: 30 } }),
     addToQueue: (uri, deviceId) => request("POST", "/me/player/queue", { query: { uri, device_id: deviceId } }),
 
-    // Bibliothek
+    // Library
     myPlaylists: (offset = 0) => request("GET", "/me/playlists", { query: { limit: 50, offset } }),
-    // seit Februar 2026 heißt der Endpunkt /items (früher /tracks) und liefert
-    // den Inhalt nur noch für eigene Playlists
+    // since February 2026 the endpoint is /items (formerly /tracks) and only
+    // returns contents for playlists you own
     playlistItems: (id, offset = 0) => request("GET", `/playlists/${id}/items`, { query: { limit: 50, offset, additional_types: "track,episode" } }),
     savedTracks: (offset = 0) => request("GET", "/me/tracks", { query: { limit: 50, offset } }),
     savedAlbums: (offset = 0) => request("GET", "/me/albums", { query: { limit: 50, offset } }),
@@ -95,10 +95,10 @@ export function createSpotifyApi() {
     albumTracks: (id, offset = 0) => request("GET", `/albums/${id}/tracks`, { query: { limit: 50, offset } }),
     artist: (id) => request("GET", `/artists/${id}`),
     artistAlbums: (id) => request("GET", `/artists/${id}/albums`, { query: { include_groups: "album,single", limit: 20 } }),
-    // seit Februar 2026: höchstens 10 Treffer pro Typ
+    // since February 2026: at most 10 results per type
     search: (q) => request("GET", "/search", { query: { q, type: "track,artist,album,playlist", limit: 10 } }),
 
-    // seit Februar 2026: Bibliothek über Spotify-URIs
+    // since February 2026: library via Spotify URIs
     isSaved: (uris) => request("GET", "/me/library/contains", { query: { uris: uriList(uris) } }),
     save: (uris) => request("PUT", "/me/library", { query: { uris: uriList(uris) } }),
     unsave: (uris) => request("DELETE", "/me/library", { query: { uris: uriList(uris) } }),

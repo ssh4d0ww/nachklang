@@ -1,7 +1,7 @@
-// Nachklang Service Worker: App-Dateien offline verfügbar machen.
-// Immer zuerst das Netz fragen (damit Updates sofort ankommen),
-// nur ohne Verbindung aus dem Cache laden. Spotify-Anfragen gehen nie über den Cache.
-const CACHE = "nachklang-v3";
+// Nachklang service worker: makes the app files available offline.
+// Always try the network first (so updates arrive immediately) and only
+// fall back to the cache when offline. Spotify requests never use the cache.
+const CACHE = "nachklang-v4";
 const SHELL = [
   "./",
   "index.html",
@@ -43,7 +43,7 @@ self.addEventListener("fetch", (e) => {
   const url = new URL(e.request.url);
   if (e.request.method !== "GET" || url.origin !== self.location.origin) return;
 
-  // Seitenaufrufe (navigate) dürfen keine zusätzlichen Optionen bekommen
+  // navigation requests must not get extra fetch options
   const fresh = e.request.mode === "navigate" ? fetch(e.request) : fetch(e.request, { cache: "no-cache" });
   e.respondWith(
     fresh

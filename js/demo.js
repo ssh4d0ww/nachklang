@@ -1,41 +1,41 @@
-// Demo-Modus: tut so, als wäre es die Spotify Web API.
-// Liefert Objekte im selben Format, damit die App denselben Code nutzt.
-// Titel, Künstler, Playlists und Cover sind frei erfunden.
+// Demo mode: pretends to be the Spotify Web API.
+// Returns objects in the same format so the app runs the same code.
+// Titles, artists, playlists and covers are all made up.
 
 const ALBUMS = [
-  { name: "Lichter der Stadt", artist: "Neon Atlas", hues: [262, 318], year: "2025" },
-  { name: "Glasregen", artist: "Mira Holm", hues: [198, 232], year: "2024" },
+  { name: "City Lights", artist: "Neon Atlas", hues: [262, 318], year: "2025" },
+  { name: "Glass Rain", artist: "Mira Holm", hues: [198, 232], year: "2024" },
   { name: "Afterglow City", artist: "Kite Delay", hues: [18, 342], year: "2026" },
   { name: "Orbit", artist: "Velvet Static", hues: [162, 204], year: "2023" },
   { name: "Coastline", artist: "Sora Mae", hues: [188, 276], year: "2025" },
 ];
 
 const TRACKS = [
-  { name: "Nachtfahrt", a: 0, dur: 203000 },
-  { name: "Glasregen", a: 1, dur: 187000 },
+  { name: "Night Drive", a: 0, dur: 203000 },
+  { name: "Glass Rain", a: 1, dur: 187000 },
   { name: "Afterglow City", a: 2, dur: 224000 },
   { name: "Slow Orbit", a: 3, dur: 241000 },
-  { name: "Weiße Linien", a: 0, dur: 176000 },
+  { name: "White Lines", a: 0, dur: 176000 },
   { name: "Low Tide FM", a: 4, dur: 198000 },
-  { name: "Mitternachtsblau", a: 1, dur: 212000 },
-  { name: "Kupferherz", a: 2, dur: 195000 },
-  { name: "Neonregen", a: 0, dur: 189000 },
-  { name: "Schwerelos", a: 3, dur: 205000 },
-  { name: "Salzwasser", a: 4, dur: 183000 },
-  { name: "Funkenflug", a: 2, dur: 171000 },
+  { name: "Midnight Blue", a: 1, dur: 212000 },
+  { name: "Copper Heart", a: 2, dur: 195000 },
+  { name: "Neon Rain", a: 0, dur: 189000 },
+  { name: "Weightless", a: 3, dur: 205000 },
+  { name: "Saltwater", a: 4, dur: 183000 },
+  { name: "Sparks", a: 2, dur: 171000 },
 ];
 
 const PLAYLISTS = [
-  { name: "Nachtschicht", hues: [250, 300], own: true, tracks: [0, 8, 4, 6, 1, 3, 9] },
-  { name: "Sonntagmorgen", hues: [32, 8], own: true, tracks: [5, 10, 1, 3, 11] },
-  { name: "Fokus", hues: [170, 210], own: true, tracks: [3, 9, 6, 1] },
-  { name: "Hits der Woche", hues: [330, 280], own: false, tracks: [2, 7, 11, 0] },
+  { name: "Night Shift", hues: [250, 300], own: true, tracks: [0, 8, 4, 6, 1, 3, 9] },
+  { name: "Sunday Morning", hues: [32, 8], own: true, tracks: [5, 10, 1, 3, 11] },
+  { name: "Focus", hues: [170, 210], own: true, tracks: [3, 9, 6, 1] },
+  { name: "Weekly Hits", hues: [330, 280], own: false, tracks: [2, 7, 11, 0] },
 ];
 
 const DEVICES = [
-  { id: "demo-pc", name: "Desktop-PC", type: "Computer", supports_volume: true },
+  { id: "demo-pc", name: "Desktop PC", type: "Computer", supports_volume: true },
   { id: "demo-phone", name: "iPhone", type: "Smartphone", supports_volume: false },
-  { id: "demo-speaker", name: "Wohnzimmer", type: "Speaker", supports_volume: true },
+  { id: "demo-speaker", name: "Living Room", type: "Speaker", supports_volume: true },
 ];
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -46,7 +46,7 @@ function fail(status, message) {
   return e;
 }
 
-// Cover als kleines Kunstwerk zeichnen (Verläufe + weiche Kreise)
+// draw a cover as a small piece of art (gradients + soft circles)
 function drawCover(hues, seed, size, ring = true) {
   const c = document.createElement("canvas");
   c.width = c.height = size;
@@ -124,7 +124,7 @@ export function createDemoApi() {
 
   const byUri = new Map(items.map((t, i) => [t.uri, i]));
 
-  // Liste aller Lied-Nummern zu einem Kontext (Album, Playlist, Künstler, Lieblingssongs)
+  // list of track indexes for a context (album, playlist, artist, Liked Songs)
   function contextList(uri) {
     const [, kind, id] = uri.split(":");
     if (kind === "album") return TRACKS.map((t, i) => [t, i]).filter(([t]) => `dalb${t.a}` === id).map(([, i]) => i);
@@ -135,10 +135,10 @@ export function createDemoApi() {
   }
 
   const s = {
-    base: items.map((_, i) => i), // Reihenfolge ohne Zufall
-    list: items.map((_, i) => i), // aktuelle Reihenfolge
+    base: items.map((_, i) => i), // order without shuffle
+    list: items.map((_, i) => i), // current order
     at: 0,
-    added: 0, // per "Zur Warteschlange" eingefügte Lieder
+    added: 0, // tracks inserted via "Add to queue"
     playing: true,
     start: 42000,
     since: Date.now(),
@@ -221,7 +221,7 @@ export function createDemoApi() {
       await sleep(120);
       if (body?.context_uri) {
         const list = contextList(body.context_uri);
-        if (!list?.length) throw fail(404, "Nichts zum Abspielen gefunden.");
+        if (!list?.length) throw fail(404, "Nothing to play.");
         const off = body.offset?.uri ? list.indexOf(byUri.get(body.offset.uri)) : body.offset?.position ?? 0;
         setList(list, off);
       } else if (body?.uris?.length) {
@@ -265,7 +265,7 @@ export function createDemoApi() {
     },
     async volume(pct) {
       await sleep(80);
-      if (!DEVICES.find((d) => d.id === s.device).supports_volume) throw fail(403, "Dieses Gerät erlaubt keine Lautstärke von außen.");
+      if (!DEVICES.find((d) => d.id === s.device).supports_volume) throw fail(403, "This device does not allow remote volume control.");
       s.volume[s.device] = pct;
     },
     async devices() {
@@ -286,7 +286,7 @@ export function createDemoApi() {
     async addToQueue(uri) {
       await sleep(120);
       const i = byUri.get(uri);
-      if (i === undefined) throw fail(404, "Lied nicht gefunden.");
+      if (i === undefined) throw fail(404, "Track not found.");
       s.added += 1;
       s.list.splice(s.at + s.added, 0, i);
     },
@@ -307,7 +307,7 @@ export function createDemoApi() {
       [].concat(uris).forEach((u) => s.liked.delete(u));
     },
 
-    // Bibliothek
+    // Library
     async myPlaylists(offset = 0) {
       await sleep(200);
       return page(playlists, offset);
@@ -315,9 +315,9 @@ export function createDemoApi() {
     async playlistItems(id, offset = 0) {
       await sleep(220);
       const p = PLAYLISTS[Number(id.replace("dpl", ""))];
-      if (!p) throw fail(404, "Playlist nicht gefunden.");
-      // wie die echte API seit Februar 2026: fremde Playlists ohne Inhalt
-      if (!p.own) throw fail(403, "Spotify zeigt den Inhalt fremder Playlists nicht an.");
+      if (!p) throw fail(404, "Playlist not found.");
+      // like the real API since February 2026: no contents for playlists you don't own
+      if (!p.own) throw fail(403, "Spotify does not show the contents of playlists you don't own.");
       return page(p.tracks.map((i) => ({ added_at: "2026-11-01T10:00:00Z", item: items[i] })), offset);
     },
     async savedTracks(offset = 0) {

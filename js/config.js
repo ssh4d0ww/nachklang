@@ -1,13 +1,13 @@
-// Nachklang – Einstellungen
+// Nachklang – settings
 //
-// clientId: die Client ID deiner App aus dem Spotify Developer Dashboard.
-// Leer lassen geht auch: Dann fragt die App beim ersten Start danach
-// und merkt sie sich im Browser.
+// clientId: the Client ID of your app from the Spotify Developer Dashboard.
+// You can leave it empty: the app then asks for it on first start
+// and remembers it in the browser.
 export const CONFIG = {
   clientId: "",
 
-  // Muss exakt so im Spotify Dashboard als Redirect URI eingetragen sein.
-  // Standard: die Adresse, unter der die App läuft (ohne index.html und ohne ?...).
+  // Must be registered exactly like this as a Redirect URI in the Spotify Dashboard.
+  // Default: the address the app runs at (without index.html and without ?...).
   redirectUri: location.origin + location.pathname.replace(/index\.html$/, ""),
 
   scopes: [
@@ -21,6 +21,6 @@ export const CONFIG = {
     "playlist-read-collaborative",
   ],
 
-  // wie oft der Wiedergabe-Status abgefragt wird (ms)
+  // how often the playback state is polled (ms)
   pollMs: 2000,
 };
