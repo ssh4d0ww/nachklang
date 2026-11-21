@@ -67,6 +67,7 @@
             </button>
             <div class="topbar-actions">
               <span class="demo-badge" id="demo-badge" hidden>Demo</span>
+              <button class="icon-btn" id="btn-library" aria-label="Bibliothek und Suche"><i data-icon="library"></i></button>
               <button class="icon-btn" id="btn-queue" aria-label="Warteschlange"><i data-icon="queue"></i></button>
               <button class="icon-btn" id="btn-menu" aria-label="Menü"><i data-icon="more"></i></button>
             </div>
@@ -113,16 +114,28 @@
         </div>
 
         <!-- Warteschlange / Zuletzt gehört: am Handy ein Sheet, am großen Bildschirm eine Spalte -->
-        <aside class="side sheet" id="side" aria-label="Warteschlange">
+        <!-- Bibliothek, Warteschlange, Verlauf: am Handy ein Sheet, am großen Bildschirm eine Spalte -->
+        <aside class="side sheet" id="side" aria-label="Bibliothek und Warteschlange">
           <div class="sheet-grip"></div>
           <div class="side-head">
             <div class="segmented" role="tablist">
+              <button role="tab" data-tab="library" aria-selected="false">Bibliothek</button>
               <button role="tab" data-tab="queue" class="is-active" aria-selected="true">Als Nächstes</button>
-              <button role="tab" data-tab="recent" aria-selected="false">Zuletzt gehört</button>
+              <button role="tab" data-tab="recent" aria-selected="false">Verlauf</button>
             </div>
             <button class="icon-btn sheet-close" data-close aria-label="Schließen"><i data-icon="close"></i></button>
           </div>
-          <ul class="track-list" id="list"></ul>
+          <div class="pane" id="pane-lists">
+            <ul class="track-list" id="list"></ul>
+          </div>
+          <div class="pane pane-lib" id="pane-lib" hidden>
+            <label class="search">
+              <i data-icon="search"></i>
+              <input id="search" type="search" placeholder="Songs, Künstler, Alben, Playlists" enterkeyhint="search" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Suche">
+              <button type="button" class="search-clear" id="search-clear" aria-label="Suche leeren" hidden><i data-icon="close"></i></button>
+            </label>
+            <div class="lib" id="lib"></div>
+          </div>
         </aside>
       </div>
     </section>

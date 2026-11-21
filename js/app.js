@@ -6,6 +6,7 @@ import { createSpotifyApi } from "./api.js";
 import { createDemoApi } from "./demo.js";
 import { coverTint } from "./color.js";
 import { icon, deviceIcon, hydrateIcons } from "./icons.js";
+import { createLibrary } from "./library.js";
 
 const $ = (sel) => document.querySelector(sel);
 
@@ -35,6 +36,9 @@ const el = {
   demoBadge: $("#demo-badge"),
   side: $("#side"),
   list: $("#list"),
+  paneLists: $("#pane-lists"),
+  paneLib: $("#pane-lib"),
+  coverWrap: $("#cover-wrap"),
   devices: $("#sheet-devices"),
   deviceList: $("#device-list"),
   menu: $("#sheet-menu"),
@@ -46,6 +50,28 @@ const el = {
 };
 
 const MODE_KEY = "nk.mode";
+
+const library = createLibrary({
+  api: () => api,
+  deviceId: () => deviceId(),
+  play: (body) => playBody(body),
+  setShuffle: async (on) => {
+    try {
+      await api.shuffle(on, deviceId());
+    } catch {
+      /* Zufall ist nur ein Extra */
+    }
+  },
+  played: () => {
+    if (!wide.matches) closeSheet();
+  },
+  queued: () => {
+    if (tab === "queue") loadList();
+  },
+  highlight: () => highlight(),
+  toast: (t) => toast(t),
+  handleError: (e) => handleError(e),
+});
 const embedded = (() => {
   try {
     return window.self !== window.top;
@@ -133,10 +159,11 @@ function enterPlayer() {
   el.menuTitle.textContent = "Nachklang";
   state = null;
   likeFor = null;
+  library.reset();
   render();
   refresh();
   startPolling();
-  if (wide.matches) loadList();
+  if (wide.matches) showTab(tab);
   api.me().then((me) => me?.display_name && (el.menuTitle.textContent = me.display_name)).catch(() => {});
 }
 
@@ -277,6 +304,7 @@ function setCover(url) {
     if (el.cover.dataset.src !== url) return;
     el.cover.src = url;
     el.cover.classList.add("is-loaded");
+    coverEnter();
   };
   img.src = url;
 }
@@ -284,7 +312,16 @@ function setCover(url) {
 function onTrackChange() {
   setBackdrop(state.cover);
   checkLiked();
-  if (wide.matches || openSheetEl === el.side) loadList();
+  highlight();
+  // gleiches Cover (z. B. gleiches Album): Wisch-Animation trotzdem abschließen
+  if (swipeEnter && el.cover.dataset.src === state.cover) coverEnter();
+  if ((wide.matches || openSheetEl === el.side) && tab !== "library") loadList();
+}
+
+// das laufende Lied in allen Listen markieren
+function highlight() {
+  const uri = state?.uri;
+  for (const row of el.side.querySelectorAll(".row[data-uri]")) row.classList.toggle("is-current", !!uri && row.dataset.uri === uri);
 }
 
 let bdIndex = 0;
@@ -298,6 +335,7 @@ function setBackdrop(url) {
     a.classList.remove("is-on");
     b.classList.remove("is-on");
     document.documentElement.style.removeProperty("--tint");
+    document.documentElement.style.removeProperty("--bottom");
     return;
   }
   const img = new Image();
@@ -311,8 +349,15 @@ function setBackdrop(url) {
   img.src = url;
   coverTint(url).then((rgb) => {
     if (bdUrl !== url) return;
-    if (rgb) document.documentElement.style.setProperty("--tint", rgb.join(" "));
-    else document.documentElement.style.removeProperty("--tint");
+    const rootStyle = document.documentElement.style;
+    if (rgb) {
+      rootStyle.setProperty("--tint", rgb.join(" "));
+      // Farbe ganz unten im Hintergrund: auch für den Streifen unter dem Home-Strich
+      rootStyle.setProperty("--bottom", rgb.map((v) => Math.round(7 + v * 0.18)).join(" "));
+    } else {
+      rootStyle.removeProperty("--tint");
+      rootStyle.removeProperty("--bottom");
+    }
   });
 }
 
@@ -375,10 +420,6 @@ async function togglePlay() {
 
 async function skip(dir) {
   if (!state?.id) return;
-  if (dir < 0 && currentPosition() > 3000) {
-    state.progress = 0;
-    fetchedAt = performance.now();
-  }
   try {
     await (dir > 0 ? api.next(deviceId()) : api.previous(deviceId()));
     settle([400, 1200, 2500]);
@@ -394,7 +435,7 @@ async function toggleShuffle() {
   try {
     await api.shuffle(state.shuffle, deviceId());
     settle();
-    if (wide.matches || openSheetEl === el.side) setTimeout(loadList, 700);
+    if ((wide.matches || openSheetEl === el.side) && tab === "queue") setTimeout(loadList, 700);
   } catch (e) {
     handleError(e);
     refresh();
@@ -477,6 +518,82 @@ function paintRange(input) {
   input.style.setProperty("--pct", `${input.value}%`);
 }
 
+// Cover wischen: nach links = nächstes Lied, nach rechts = vorheriges
+let swipeEnter = 0; // Richtung, aus der das nächste Cover hereinkommt
+let swipeTimer = null;
+
+function bindCoverSwipe() {
+  const wrap = el.coverWrap;
+  let x0 = null;
+  let y0 = 0;
+  let dx = 0;
+  let axis = null;
+
+  wrap.addEventListener("pointerdown", (e) => {
+    if (!state?.id || e.button > 0) return;
+    x0 = e.clientX;
+    y0 = e.clientY;
+    dx = 0;
+    axis = null;
+    wrap.setPointerCapture(e.pointerId);
+  });
+
+  wrap.addEventListener("pointermove", (e) => {
+    if (x0 === null) return;
+    const mx = e.clientX - x0;
+    const my = e.clientY - y0;
+    if (!axis && Math.hypot(mx, my) > 8) {
+      axis = Math.abs(mx) > Math.abs(my) ? "x" : "y";
+      if (axis === "x") el.cover.style.transition = "none";
+    }
+    if (axis !== "x") return;
+    dx = mx;
+    el.cover.style.transform = `translateX(${dx}px) rotate(${dx / 45}deg)`;
+    el.cover.style.opacity = String(1 - Math.min(0.5, Math.abs(dx) / 500));
+  });
+
+  const end = (e) => {
+    if (x0 === null) return;
+    x0 = null;
+    if (axis !== "x") return;
+    el.cover.style.transition = "";
+    const width = wrap.clientWidth || 300;
+    if (e.type !== "pointercancel" && Math.abs(dx) > Math.min(90, width * 0.22)) {
+      const dir = dx < 0 ? 1 : -1;
+      el.cover.style.transform = `translateX(${dir > 0 ? -110 : 110}%) rotate(${dir > 0 ? -8 : 8}deg)`;
+      el.cover.style.opacity = "0";
+      swipeEnter = dir;
+      skip(dir);
+      // falls das neue Lied auf sich warten lässt: altes Cover zurückholen
+      clearTimeout(swipeTimer);
+      swipeTimer = setTimeout(() => coverEnter(), 2500);
+    } else {
+      el.cover.style.transform = "";
+      el.cover.style.opacity = "";
+    }
+  };
+  wrap.addEventListener("pointerup", end);
+  wrap.addEventListener("pointercancel", end);
+}
+
+// neues Cover von der Seite hereingleiten lassen
+function coverEnter() {
+  clearTimeout(swipeTimer);
+  if (!swipeEnter) return;
+  const from = swipeEnter > 0 ? 70 : -70;
+  swipeEnter = 0;
+  el.cover.style.transition = "none";
+  el.cover.style.transform = `translateX(${from}%)`;
+  el.cover.style.opacity = "0";
+  requestAnimationFrame(() =>
+    requestAnimationFrame(() => {
+      el.cover.style.transition = "";
+      el.cover.style.transform = "";
+      el.cover.style.opacity = "";
+    })
+  );
+}
+
 // Fortschrittsbalken ziehen
 function bindSeek() {
   const toMs = (clientX) => {
@@ -522,7 +639,7 @@ function trackRow(item, { button = false, meta = "" } = {}) {
   const img = pickImage(images, 120);
   const sub = episode ? item.show?.name || "" : (item.artists || []).map((a) => a.name).join(", ");
   const tag = button ? "button" : "div";
-  return `<li><${tag} class="row" ${button ? `data-uri="${esc(item.uri)}"` : ""}>
+  return `<li><${tag} class="row" data-uri="${esc(item.uri)}"${button ? " data-recent" : ""}>
       ${img ? `<img src="${esc(img)}" alt="" loading="lazy">` : `<span class="thumb"></span>`}
       <span class="row-text"><div class="row-title">${esc(item.name)}</div><div class="row-sub">${esc(sub)}</div></span>
       ${meta ? `<span class="row-meta">${esc(meta)}</span>` : ""}
@@ -558,7 +675,10 @@ async function loadList() {
         ? items.map((i) => trackRow(i.track, { button: true, meta: ago(i.played_at) })).join("")
         : `<li class="list-empty">Noch nichts gehört.</li>`;
     }
-    if (token === listToken) el.list.innerHTML = html;
+    if (token === listToken) {
+      el.list.innerHTML = html;
+      highlight();
+    }
   } catch (e) {
     if (token === listToken) el.list.innerHTML = `<li class="list-empty">${esc(e.message || "Konnte nicht geladen werden.")}</li>`;
   }
@@ -566,20 +686,25 @@ async function loadList() {
 
 let recentContext = new Map();
 
+// startet Wiedergabe; ohne aktives Gerät wird das erste verfügbare genommen
+async function playBody(body) {
+  let id = deviceId();
+  if (!id) {
+    const d = await api.devices();
+    const target = d?.devices?.find((x) => x.is_active) || d?.devices?.[0];
+    if (!target) throw Object.assign(new Error("Kein Gerät gefunden. Öffne Spotify auf einem Gerät."), { status: 404 });
+    id = target.id;
+  }
+  await api.play(id, body);
+  settle([400, 1200, 2500]);
+}
+
 async function playFromList(uri) {
   const ctx = recentContext.get(uri);
   const body = ctx && /^(album|playlist)$/.test(ctx.type) ? { context_uri: ctx.uri, offset: { uri } } : { uris: [uri] };
   try {
-    if (!deviceId()) {
-      const d = await api.devices();
-      const target = d?.devices?.find((x) => x.is_active) || d?.devices?.[0];
-      if (!target) throw Object.assign(new Error("Kein Gerät gefunden. Öffne Spotify auf einem Gerät."), { status: 404 });
-      await api.play(target.id, body);
-    } else {
-      await api.play(deviceId(), body);
-    }
+    await playBody(body);
     if (!wide.matches) closeSheet();
-    settle([400, 1200, 2500]);
   } catch (e) {
     handleError(e);
   }
@@ -641,11 +766,26 @@ function typeLabel(type) {
 // Sheets, Toast, Fehler
 // ------------------------------------------------------------------
 
+// Reiter im Seitenbereich: Bibliothek, Als Nächstes, Verlauf
+function showTab(name) {
+  tab = name;
+  for (const b of document.querySelectorAll(".segmented button")) {
+    const on = b.dataset.tab === name;
+    b.classList.toggle("is-active", on);
+    b.setAttribute("aria-selected", String(on));
+  }
+  el.paneLib.hidden = name !== "library";
+  el.paneLists.hidden = name === "library";
+  if (name === "library") library.show();
+  else loadList();
+}
+
 function openSheet(sheet) {
   if (openSheetEl && openSheetEl !== sheet) openSheetEl.classList.remove("is-open");
   openSheetEl = sheet;
   sheet.classList.add("is-open");
   el.scrim.hidden = false;
+  document.documentElement.classList.add("sheet-open");
 }
 
 function closeSheet() {
@@ -653,6 +793,7 @@ function closeSheet() {
   openSheetEl.classList.remove("is-open");
   openSheetEl = null;
   el.scrim.hidden = true;
+  document.documentElement.classList.remove("sheet-open");
 }
 
 // Sheet nach unten wischen zum Schließen
@@ -757,11 +898,16 @@ function bindEvents() {
   el.like.addEventListener("click", toggleLike);
   el.volume.addEventListener("input", onVolumeInput);
   bindSeek();
+  bindCoverSwipe();
 
   el.deviceBtn.addEventListener("click", openDevices);
   $("#btn-queue").addEventListener("click", () => {
     openSheet(el.side);
-    loadList();
+    showTab(tab === "library" ? "queue" : tab);
+  });
+  $("#btn-library").addEventListener("click", () => {
+    openSheet(el.side);
+    showTab("library");
   });
   $("#btn-menu").addEventListener("click", () => openSheet(el.menu));
   $("#btn-reload").addEventListener("click", () => location.reload());
@@ -779,17 +925,10 @@ function bindEvents() {
   for (const sheet of [el.side, el.devices, el.menu]) bindSheetSwipe(sheet);
 
   for (const btn of document.querySelectorAll(".segmented button")) {
-    btn.addEventListener("click", () => {
-      tab = btn.dataset.tab;
-      for (const b of document.querySelectorAll(".segmented button")) {
-        b.classList.toggle("is-active", b === btn);
-        b.setAttribute("aria-selected", String(b === btn));
-      }
-      loadList();
-    });
+    btn.addEventListener("click", () => showTab(btn.dataset.tab));
   }
   el.list.addEventListener("click", (e) => {
-    const row = e.target.closest("button[data-uri]");
+    const row = e.target.closest("button[data-recent]");
     if (row) playFromList(row.dataset.uri);
   });
   el.deviceList.addEventListener("click", (e) => {
@@ -810,7 +949,7 @@ function bindEvents() {
   wide.addEventListener("change", () => {
     if (wide.matches) {
       if (openSheetEl === el.side) closeSheet();
-      if (api) loadList();
+      if (api) showTab(tab);
     }
   });
 }
@@ -818,7 +957,15 @@ function bindEvents() {
 function registerServiceWorker() {
   try {
     if (!("serviceWorker" in navigator) || !window.isSecureContext || embedded) return;
-    navigator.serviceWorker.register("sw.js").catch(() => {});
+    // wenn eine neue Version übernimmt: einmal neu laden, damit alle Dateien zusammenpassen
+    const hadController = !!navigator.serviceWorker.controller;
+    let reloaded = false;
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+      if (!hadController || reloaded) return;
+      reloaded = true;
+      location.reload();
+    });
+    navigator.serviceWorker.register("sw.js", { updateViaCache: "none" }).catch(() => {});
   } catch {
     /* z. B. in einer gesperrten Vorschau: ohne Offline-Cache weiter */
   }

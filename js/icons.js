@@ -19,6 +19,11 @@ const ICONS = {
   speaker: `<g ${S}><rect x="6" y="3" width="12" height="18" rx="3"/><circle cx="12" cy="14" r="3"/><circle cx="12" cy="7.6" r=".6" fill="currentColor"/></g>`,
   tv: `<g ${S}><rect x="3" y="5" width="18" height="12" rx="2"/><path d="M8 20h8"/></g>`,
   device: `<g ${S}><rect x="5" y="4" width="14" height="16" rx="3"/><circle cx="12" cy="13" r="3"/></g>`,
+  library: `<g ${S}><rect x="4" y="4.5" width="3.2" height="15" rx="1"/><rect x="9.6" y="4.5" width="3.2" height="15" rx="1"/><path d="m15.4 5.6 3-.8 3.2 13.9-3 .8z"/></g>`,
+  search: `<g ${S}><circle cx="10.8" cy="10.8" r="6.3"/><path d="m15.6 15.6 4.4 4.4"/></g>`,
+  back: `<path ${S} d="M14.5 5.5 8 12l6.5 6.5"/>`,
+  chevron: `<path ${S} d="m9.5 6 6 6-6 6"/>`,
+  plus: `<g ${S}><path d="M12 5.5v13"/><path d="M5.5 12h13"/></g>`,
   logo: '<circle cx="12" cy="12" r="8.2" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="3.4" fill="currentColor"/><path d="M12 3.8a8.2 8.2 0 0 1 8.2 8.2" fill="none" stroke="#ff4d4d" stroke-width="1.8" stroke-linecap="round"/>',
 };
 
