@@ -1,8 +1,8 @@
 {
   "name": "Nachklang",
   "short_name": "Nachklang",
-  "description": "Spotify-Fernbedienung im Liner-Look",
-  "lang": "de",
+  "description": "A Spotify remote control in the Liner look",
+  "lang": "en",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

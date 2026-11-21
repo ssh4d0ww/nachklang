@@ -1,6 +1,6 @@
-// Login bei Spotify mit "Authorization Code + PKCE".
-// Kein Server nötig: Der geheime Schlüssel bleibt weg, stattdessen
-// beweist ein zufälliger "code_verifier", dass die Anfrage von uns kommt.
+// Spotify login using "Authorization Code + PKCE".
+// No server needed: there is no client secret; instead a random
+// "code_verifier" proves that the request came from us.
 import { CONFIG } from "./config.js";
 import { store } from "./store.js";
 
@@ -28,8 +28,8 @@ export function isLoggedIn() {
   return !!readToken();
 }
 
-// Berechtigungen aus CONFIG.scopes, die der aktuelle Login noch nicht hat
-// (z. B. nach einem Update, das neue Funktionen braucht)
+// scopes from CONFIG.scopes that the current login does not have yet
+// (e.g. after an update that needs new permissions)
 export function missingScopes(wanted = CONFIG.scopes) {
   const granted = new Set((readToken()?.scope || "").split(/\s+/).filter(Boolean));
   return wanted.filter((s) => !granted.has(s));
@@ -50,10 +50,10 @@ function readToken() {
 function saveToken(data, previous) {
   const token = {
     access: data.access_token,
-    // Spotify schickt beim Erneuern nicht immer einen neuen refresh_token
+    // Spotify does not always send a new refresh_token when refreshing
     refresh: data.refresh_token || previous?.refresh || null,
     expires: Date.now() + (data.expires_in - 60) * 1000,
-    // welche Berechtigungen der Login wirklich erteilt hat
+    // which scopes the login actually granted
     scope: data.scope || previous?.scope || "",
   };
   store.set(KEYS.token, JSON.stringify(token));
@@ -79,8 +79,8 @@ async function sha256(text) {
 
 export async function buildLoginUrl() {
   const clientId = getClientId();
-  if (!clientId) throw new AuthError("Es fehlt noch die Spotify Client ID.");
-  if (!window.isSecureContext) throw new AuthError("Login geht nur über https:// oder http://127.0.0.1.");
+  if (!clientId) throw new AuthError("The Spotify Client ID is missing.");
+  if (!window.isSecureContext) throw new AuthError("Login only works over https:// or http://127.0.0.1.");
   const verifier = randomString(64);
   const state = randomString(16);
   store.set(KEYS.verifier, verifier);
@@ -101,22 +101,22 @@ export async function login() {
   location.assign(await buildLoginUrl());
 }
 
-// Nach dem Login schickt Spotify uns mit ?code=... zurück.
-// Gibt true zurück, wenn gerade ein Login abgeschlossen wurde.
+// After login Spotify sends us back with ?code=...
+// Returns true if a login was just completed.
 export async function handleRedirect() {
   const params = new URLSearchParams(location.search);
   if (!params.has("code") && !params.has("error")) return false;
 
-  // Adresse aufräumen, damit ein Neuladen den Code nicht nochmal schickt
+  // clean up the URL so a reload does not send the code again
   history.replaceState(null, "", CONFIG.redirectUri);
 
   if (params.has("error")) {
     const err = params.get("error");
-    throw new AuthError(err === "access_denied" ? "Login abgebrochen." : `Spotify meldet: ${err}`);
+    throw new AuthError(err === "access_denied" ? "Login cancelled." : `Spotify says: ${err}`);
   }
   const verifier = store.get(KEYS.verifier);
   if (!verifier || params.get("state") !== store.get(KEYS.state)) {
-    throw new AuthError("Login konnte nicht geprüft werden. Bitte nochmal versuchen.");
+    throw new AuthError("Login could not be verified. Please try again.");
   }
   store.remove(KEYS.verifier);
   store.remove(KEYS.state);
@@ -141,7 +141,7 @@ let refreshing = null;
 
 async function refresh() {
   const current = readToken();
-  if (!current?.refresh) throw new AuthError("Bitte neu mit Spotify verbinden.");
+  if (!current?.refresh) throw new AuthError("Please reconnect to Spotify.");
   const res = await fetch(TOKEN_URL, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -152,21 +152,21 @@ async function refresh() {
     }),
   });
   if (!res.ok) {
-    // Netzwerk/Serverfehler: Token behalten, später nochmal probieren
-    if (res.status >= 500) throw new Error("Spotify ist gerade nicht erreichbar.");
+    // network/server error: keep the token, try again later
+    if (res.status >= 500) throw new Error("Spotify is not reachable right now.");
     logout();
-    throw new AuthError("Bitte neu mit Spotify verbinden.");
+    throw new AuthError("Please reconnect to Spotify.");
   }
   return saveToken(await res.json(), current);
 }
 
-// Liefert ein gültiges Access Token und erneuert es bei Bedarf.
-// force = true: auch erneuern, wenn es noch gültig aussieht (z. B. nach 401)
+// Returns a valid access token and refreshes it when needed.
+// force = true: refresh even if it still looks valid (e.g. after a 401)
 export async function getAccessToken(force = false) {
   const token = readToken();
   if (!token) throw new AuthError("Nicht verbunden.");
   if (!force && Date.now() < token.expires) return token.access;
-  // mehrere gleichzeitige Anfragen teilen sich eine Erneuerung
+  // concurrent requests share a single refresh
   refreshing ??= refresh().finally(() => (refreshing = null));
   return (await refreshing).access;
 }
@@ -174,10 +174,10 @@ export async function getAccessToken(force = false) {
 async function describeTokenError(res) {
   try {
     const body = await res.json();
-    if (body.error === "invalid_client") return "Client ID stimmt nicht. Bitte im Spotify Dashboard prüfen.";
-    if (body.error === "invalid_grant") return "Redirect URI passt nicht oder der Code ist abgelaufen.";
-    return body.error_description || body.error || `Fehler ${res.status}`;
+    if (body.error === "invalid_client") return "Invalid Client ID. Please check it in the Spotify Dashboard.";
+    if (body.error === "invalid_grant") return "Redirect URI does not match or the code has expired.";
+    return body.error_description || body.error || `Error ${res.status}`;
   } catch {
-    return `Fehler ${res.status}`;
+    return `Error ${res.status}`;
   }
 }

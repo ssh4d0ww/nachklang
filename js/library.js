@@ -1,5 +1,5 @@
-// Bibliothek und Suche: Lieblingssongs, Playlists, Alben, Künstler.
-// Ansichten liegen auf einem Stapel (stack), "Zurück" nimmt die oberste weg.
+// Library and search: Liked Songs, playlists, albums, artists.
+// Views live on a stack; "Back" pops the top one.
 import { icon } from "./icons.js";
 
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
@@ -21,7 +21,7 @@ export function pickImage(images, want) {
 const artistNames = (t) => (t?.artists || []).map((a) => a.name).join(", ");
 const trackImages = (t) => (t?.type === "episode" ? t.images || t.show?.images : t?.album?.images) || [];
 const countOf = (pl) => pl?.items?.total ?? pl?.tracks?.total;
-// Playlist-Einträge heißen seit Februar 2026 "item" statt "track"
+// since February 2026 playlist entries use "item" instead of "track"
 const entryTrack = (e) => e?.item || e?.track || null;
 
 const skeleton = (n = 6) =>
@@ -46,7 +46,7 @@ export function createLibrary(ctx) {
   }
 
   // ------------------------------------------------------------
-  // Öffentliche Funktionen
+  // Public functions
   // ------------------------------------------------------------
 
   function show() {
@@ -65,7 +65,7 @@ export function createLibrary(ctx) {
   }
 
   // ------------------------------------------------------------
-  // Zeichnen
+  // Rendering
   // ------------------------------------------------------------
 
   function render() {
@@ -98,7 +98,7 @@ export function createLibrary(ctx) {
         <span class="row-text"><div class="row-title">${esc(t.name)}</div><div class="row-sub">${esc(t.type === "episode" ? t.show?.name : artistNames(t))}</div></span>
         <span class="row-meta">${fmt(t.duration_ms)}</span>
       </button>
-      <button class="icon-btn row-add" data-queue="${esc(t.uri)}" aria-label="Zur Warteschlange hinzufügen">${icon("plus")}</button>
+      <button class="icon-btn row-add" data-queue="${esc(t.uri)}" aria-label="Add to queue">${icon("plus")}</button>
     </li>`;
   }
 
@@ -106,7 +106,7 @@ export function createLibrary(ctx) {
     entityRow({ open: `playlist:${pl.id}`, img: pickImage(pl.images, 120), title: pl.name, sub: `Playlist · ${pl.owner?.display_name || ""}` });
   const albumRow = (al) =>
     entityRow({ open: `album:${al.id}`, img: pickImage(al.images, 120), title: al.name, sub: `${al.album_type === "single" ? "Single" : "Album"} · ${artistNames(al)}` });
-  const artistRow = (ar) => entityRow({ open: `artist:${ar.id}`, img: pickImage(ar.images, 120), title: ar.name, sub: "Künstler", round: true });
+  const artistRow = (ar) => entityRow({ open: `artist:${ar.id}`, img: pickImage(ar.images, 120), title: ar.name, sub: "Artist", round: true });
 
   async function renderHome(t) {
     if (!home) {
@@ -117,40 +117,40 @@ export function createLibrary(ctx) {
       const val = (r) => (r.status === "fulfilled" ? r.value : null);
       home = {
         playlists: val(pl), albums: val(al), liked: val(li), at: Date.now(),
-        playlistError: pl.status === "rejected" ? pl.reason?.message || "Fehler" : null,
+        playlistError: pl.status === "rejected" ? pl.reason?.message || "Error" : null,
         error: [pl, al, li].every((r) => r.status === "rejected") ? pl.reason : null,
       };
       if (home.error) {
         const msg = home.error.message;
         home = null;
-        root.innerHTML = `<p class="list-empty">${esc(msg || "Bibliothek konnte nicht geladen werden.")}</p>`;
+        root.innerHTML = `<p class="list-empty">${esc(msg || "Your library could not be loaded.")}</p>`;
         return;
       }
     }
     const playlists = (home.playlists?.items || []).filter(Boolean);
-    // Login von vor dem Update: ohne Berechtigung für private Playlists
+    // login from before the update: no permission for private playlists
     const reconnect = ctx.needsReconnect?.()
       ? `<li><button class="row" data-action="reconnect">
           <span class="thumb liked-thumb">${icon("library")}</span>
-          <span class="row-text"><div class="row-title">Playlists freischalten</div><div class="row-sub">Einmal neu mit Spotify verbinden</div></span>
+          <span class="row-text"><div class="row-title">Unlock playlists</div><div class="row-sub">Reconnect to Spotify once</div></span>
           <span class="row-chev">${icon("chevron")}</span>
         </button></li>`
       : "";
-    const playlistError = !home.playlists && home.playlistError ? `<li class="list-empty small">Playlists konnten nicht geladen werden: ${esc(home.playlistError)}</li>` : "";
+    const playlistError = !home.playlists && home.playlistError ? `<li class="list-empty small">Playlists could not be loaded: ${esc(home.playlistError)}</li>` : "";
     const albums = (home.albums?.items || []).map((e) => e?.album).filter(Boolean);
     const likedTotal = home.liked?.total ?? 0;
     root.innerHTML = `<ul class="track-list">
         <li><button class="row" data-open="liked:">
           <span class="thumb liked-thumb">${icon("heartFilled")}</span>
-          <span class="row-text"><div class="row-title">Lieblingssongs</div><div class="row-sub">${likedTotal} Songs</div></span>
+          <span class="row-text"><div class="row-title">Liked Songs</div><div class="row-sub">${likedTotal} songs</div></span>
           <span class="row-chev">${icon("chevron")}</span>
         </button></li>
         <li class="list-label">Playlists</li>
         ${reconnect}
-        ${playlists.length ? playlists.map(playlistRow).join("") : playlistError || (reconnect ? "" : `<li class="list-empty small">Noch keine Playlists.</li>`)}
-        ${home.playlists?.next ? `<li><button class="more-btn" data-more="playlists">Mehr Playlists laden</button></li>` : ""}
-        <li class="list-label">Alben</li>
-        ${albums.length ? albums.map(albumRow).join("") : `<li class="list-empty small">Noch keine gespeicherten Alben.</li>`}
+        ${playlists.length ? playlists.map(playlistRow).join("") : playlistError || (reconnect ? "" : `<li class="list-empty small">No playlists yet.</li>`)}
+        ${home.playlists?.next ? `<li><button class="more-btn" data-more="playlists">Load more playlists</button></li>` : ""}
+        <li class="list-label">Albums</li>
+        ${albums.length ? albums.map(albumRow).join("") : `<li class="list-empty small">No saved albums yet.</li>`}
       </ul>`;
   }
 
@@ -172,14 +172,14 @@ export function createLibrary(ctx) {
     const playlists = (r.playlists?.items || []).filter(Boolean);
     view.tracks = tracks;
     if (!tracks.length && !artists.length && !albums.length && !playlists.length) {
-      root.innerHTML = `<p class="list-empty">Nichts gefunden für „${esc(view.q)}“.</p>`;
+      root.innerHTML = `<p class="list-empty">Nothing found for “${esc(view.q)}”.</p>`;
       return;
     }
     const section = (label, html) => (html ? `<li class="list-label">${label}</li>${html}` : "");
     root.innerHTML = `<ul class="track-list">
       ${section("Songs", tracks.map((x, i) => trackRow(x, i)).join(""))}
-      ${section("Künstler", artists.slice(0, 5).map(artistRow).join(""))}
-      ${section("Alben", albums.slice(0, 6).map(albumRow).join(""))}
+      ${section("Artists", artists.slice(0, 5).map(artistRow).join(""))}
+      ${section("Albums", albums.slice(0, 6).map(albumRow).join(""))}
       ${section("Playlists", playlists.slice(0, 6).map(playlistRow).join(""))}
     </ul>`;
     ctx.highlight();
@@ -201,10 +201,10 @@ export function createLibrary(ctx) {
       ? `<span class="thumb detail-cover liked-thumb">${icon("heartFilled")}</span>`
       : view.image ? `<img class="detail-cover${round ? " round" : ""}" src="${esc(view.image)}" alt="">` : `<span class="thumb detail-cover${round ? " round" : ""}"></span>`;
     const list = view.kind === "artist"
-      ? `<li class="list-label">Alben &amp; Singles</li>${view.albums.length ? view.albums.map(albumRow).join("") : `<li class="list-empty small">Keine Alben gefunden.</li>`}`
+      ? `<li class="list-label">Albums &amp; singles</li>${view.albums.length ? view.albums.map(albumRow).join("") : `<li class="list-empty small">No albums found.</li>`}`
       : view.tracks.length
         ? view.tracks.map((x, i) => trackRow(x, i, { number: view.kind === "album" })).join("")
-        : view.notice ? "" : `<li class="list-empty small">Hier ist noch nichts drin.</li>`;
+        : view.notice ? "" : `<li class="list-empty small">Nothing in here yet.</li>`;
     root.innerHTML = `${backBar()}
       <div class="detail-head">
         ${cover}
@@ -215,24 +215,24 @@ export function createLibrary(ctx) {
         </div>
       </div>
       <div class="detail-actions">
-        <button class="btn-pill primary" data-action="play">${icon("play")}<span>Abspielen</span></button>
-        <button class="btn-pill" data-action="shuffle">${icon("shuffle")}<span>Zufall</span></button>
+        <button class="btn-pill primary" data-action="play">${icon("play")}<span>Play</span></button>
+        <button class="btn-pill" data-action="shuffle">${icon("shuffle")}<span>Shuffle</span></button>
       </div>
       ${view.notice ? `<p class="notice">${esc(view.notice)}</p>` : ""}
       <ul class="track-list">${list}
-        ${view.next ? `<li><button class="more-btn" data-more="detail">Mehr laden</button></li>` : ""}
+        ${view.next ? `<li><button class="more-btn" data-more="detail">Load more</button></li>` : ""}
       </ul>`;
     ctx.highlight();
   }
 
   function backBar() {
     const prev = stack[stack.length - 2];
-    const label = !prev ? "Bibliothek" : prev.kind === "home" ? "Bibliothek" : prev.kind === "search" ? "Suche" : prev.title || "Zurück";
+    const label = !prev ? "Library" : prev.kind === "home" ? "Library" : prev.kind === "search" ? "Search" : prev.title || "Back";
     return `<div class="lib-top"><button class="back-btn" data-back>${icon("back")}<span>${esc(label)}</span></button></div>`;
   }
 
   // ------------------------------------------------------------
-  // Daten für Detailansichten
+  // Data for detail views
   // ------------------------------------------------------------
 
   async function loadDetail(view) {
@@ -240,13 +240,13 @@ export function createLibrary(ctx) {
     if (view.kind === "liked") {
       const res = await api.savedTracks(0);
       Object.assign(view, {
-        label: "Playlist", title: "Lieblingssongs", sub: `${res.total ?? 0} Songs`,
+        label: "Playlist", title: "Liked Songs", sub: `${res.total ?? 0} songs`,
         tracks: (res.items || []).map(entryTrack).filter(Boolean), next: !!res.next, offset: 50, total: res.total,
       });
     } else if (view.kind === "playlist") {
       const meta = view.meta || findPlaylist(view.id) || {};
       Object.assign(view, {
-        label: "Playlist", title: meta.name || "Playlist", sub: [meta.owner?.display_name, countOf(meta) != null ? `${countOf(meta)} Songs` : ""].filter(Boolean).join(" · "),
+        label: "Playlist", title: meta.name || "Playlist", sub: [meta.owner?.display_name, countOf(meta) != null ? `${countOf(meta)} songs` : ""].filter(Boolean).join(" · "),
         image: pickImage(meta.images, 300), uri: meta.uri || `spotify:playlist:${view.id}`, tracks: [], total: countOf(meta),
       });
       try {
@@ -256,20 +256,20 @@ export function createLibrary(ctx) {
         view.offset = 50;
       } catch (e) {
         if (e.status !== 403 && e.status !== 404) throw e;
-        view.notice = "Spotify zeigt den Inhalt fremder Playlists nicht mehr an. Abspielen geht trotzdem.";
+        view.notice = "Spotify no longer shows the contents of playlists you don't own. You can still play them.";
       }
     } else if (view.kind === "album") {
       const al = await api.album(view.id);
       const tracks = (al.tracks?.items || []).map((x) => ({ ...x, album: x.album || { images: al.images, name: al.name } }));
       Object.assign(view, {
         label: al.album_type === "single" ? "Single" : "Album", title: al.name,
-        sub: [artistNames(al), (al.release_date || "").slice(0, 4), `${al.total_tracks ?? tracks.length} Songs`].filter(Boolean).join(" · "),
+        sub: [artistNames(al), (al.release_date || "").slice(0, 4), `${al.total_tracks ?? tracks.length} songs`].filter(Boolean).join(" · "),
         image: pickImage(al.images, 300), uri: al.uri, tracks, next: !!al.tracks?.next, offset: 50, total: al.total_tracks,
       });
     } else if (view.kind === "artist") {
       const [ar, albums] = await Promise.all([api.artist(view.id), api.artistAlbums(view.id).catch(() => ({ items: [] }))]);
       Object.assign(view, {
-        label: "Künstler", title: ar.name, sub: (ar.genres || []).slice(0, 3).join(", ") || "Künstler",
+        label: "Artist", title: ar.name, sub: (ar.genres || []).slice(0, 3).join(", ") || "Artist",
         image: pickImage(ar.images, 300), uri: ar.uri, tracks: [], albums: (albums.items || []).filter(Boolean),
       });
     }
@@ -310,7 +310,7 @@ export function createLibrary(ctx) {
   }
 
   // ------------------------------------------------------------
-  // Abspielen
+  // Playback
   // ------------------------------------------------------------
 
   async function playFrom(view, index, shuffle = false) {
@@ -326,7 +326,7 @@ export function createLibrary(ctx) {
           if (!user?.id) throw new Error("no user");
           await ctx.play({ context_uri: `spotify:user:${user.id}:collection`, offset: { uri: tracks[start]?.uri } }, { quiet: true });
         } catch {
-          // Rückfall: die geladenen Lieblingssongs als Liste abspielen
+          // fallback: play the loaded Liked Songs as a list
           await ctx.play({ uris: tracks.map((x) => x.uri), offset: { position: start } });
         }
       } else {
@@ -343,7 +343,7 @@ export function createLibrary(ctx) {
   }
 
   // ------------------------------------------------------------
-  // Ereignisse
+  // Events
   // ------------------------------------------------------------
 
   function push(view) {
@@ -364,7 +364,7 @@ export function createLibrary(ctx) {
     } else if (t.dataset.queue) {
       try {
         await ctx.api().addToQueue(t.dataset.queue, ctx.deviceId());
-        ctx.toast("Zur Warteschlange hinzugefügt");
+        ctx.toast("Added to queue");
         ctx.queued();
       } catch (err) {
         ctx.handleError(err);

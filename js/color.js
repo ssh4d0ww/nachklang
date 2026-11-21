@@ -1,5 +1,5 @@
-// Holt eine kräftige, aber dunkle Grundfarbe aus einem Cover.
-// Gibt [r, g, b] zurück oder null, wenn das Bild nicht lesbar ist.
+// Picks a vivid but dark base color from a cover image.
+// Returns [r, g, b], or null if the image cannot be read.
 export function coverTint(url) {
   return new Promise((resolve) => {
     if (!url) return resolve(null);
@@ -21,20 +21,20 @@ export function coverTint(url) {
           const max = Math.max(R, G, B), min = Math.min(R, G, B);
           const sat = max ? (max - min) / max : 0;
           const lum = max / 255;
-          // bunte, mittelhelle Pixel zählen mehr als Grau, Schwarz oder Weiß
+          // colorful mid-tone pixels count more than gray, black or white
           const weight = 0.08 + sat * sat * (lum > 0.15 && lum < 0.95 ? 2 : 0.3);
           r += R * weight; g += G * weight; b += B * weight; w += weight;
         }
         resolve(darken([r / w, g / w, b / w]));
       } catch {
-        resolve(null); // fremdes Bild ohne CORS: Canvas ist gesperrt
+        resolve(null); // foreign image without CORS: the canvas is tainted
       }
     };
     img.src = url;
   });
 }
 
-// auf eine Helligkeit bringen, auf der weißer Text gut lesbar bleibt
+// bring it to a brightness where white text stays readable
 function darken([r, g, b]) {
   const max = Math.max(r, g, b, 1);
   const target = Math.min(max, 150);
