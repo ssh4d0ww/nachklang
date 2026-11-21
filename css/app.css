@@ -670,6 +670,16 @@ button:disabled {
   display: none;
 }
 
+/* nichts aktiv, aber letztes Lied bekannt: nur Abspielen, Spulen und Herz */
+.is-inactive .controls .ctl:not(.ctl-play) {
+  opacity: 0.3;
+  pointer-events: none;
+}
+
+.is-inactive .pill {
+  color: var(--text-2);
+}
+
 .no-track .controls .ctl:not(.ctl-play),
 .no-track .like,
 .no-track .progress {

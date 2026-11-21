@@ -69,6 +69,8 @@ const library = createLibrary({
     if (tab === "queue") loadList();
   },
   highlight: () => highlight(),
+  needsReconnect: () => api?.kind === "spotify" && auth.missingScopes(["playlist-read-private"]).length > 0,
+  reconnect: () => auth.login().catch((e) => toast(e.message, 3500)),
   toast: (t) => toast(t),
   handleError: (e) => handleError(e),
 });
@@ -159,6 +161,7 @@ function enterPlayer() {
   el.menuTitle.textContent = "Nachklang";
   state = null;
   likeFor = null;
+  recentTried = false;
   library.reset();
   render();
   refresh();
@@ -190,7 +193,97 @@ function normalize(raw) {
     shuffle: !!raw.shuffle_state,
     repeat: raw.repeat_state || "off",
     device: raw.device || null,
+    contextUri: raw.context?.uri || null,
+    item,
   };
+}
+
+// ------------------------------------------------------------------
+// Letztes Lied merken: Pausiert man am iPhone, meldet Spotify nach kurzer
+// Zeit "nichts aktiv". Dann zeigt die App das letzte Lied weiter an und
+// kann es von dort fortsetzen.
+// ------------------------------------------------------------------
+
+const LAST_KEY = "nk.last";
+let lastSaved = 0;
+let recentTried = false;
+
+function slimItem(item) {
+  const img = (list) => (list || []).map(({ url, width, height }) => ({ url, width, height }));
+  return {
+    id: item.id,
+    uri: item.uri,
+    type: item.type,
+    name: item.name,
+    duration_ms: item.duration_ms,
+    artists: (item.artists || []).map((a) => ({ name: a.name })),
+    album: item.album ? { name: item.album.name, images: img(item.album.images) } : undefined,
+    images: item.images ? img(item.images) : undefined,
+    show: item.show ? { name: item.show.name, images: img(item.show.images) } : undefined,
+  };
+}
+
+function saveSnapshot(s, force = false) {
+  if (api?.kind !== "spotify" || !s?.id || s.inactive) return;
+  if (!force && Date.now() - lastSaved < 5000) return;
+  lastSaved = Date.now();
+  const snap = {
+    item: slimItem(s.item),
+    progress: Math.round(s === state ? currentPosition() : s.progress),
+    context: s.contextUri,
+    shuffle: s.shuffle,
+    repeat: s.repeat,
+    device: s.device ? { id: s.device.id, name: s.device.name, type: s.device.type } : null,
+    at: Date.now(),
+  };
+  try {
+    store.set(LAST_KEY, JSON.stringify(snap));
+  } catch {
+    /* Speicher voll oder gesperrt: dann eben ohne */
+  }
+}
+
+function readSnapshot() {
+  try {
+    const snap = JSON.parse(store.get(LAST_KEY) || "null");
+    // nach einer Woche ist das letzte Lied nicht mehr interessant
+    if (!snap?.item?.uri || Date.now() - snap.at > 7 * 864e5) return null;
+    return snap;
+  } catch {
+    return null;
+  }
+}
+
+// macht aus dem gemerkten Lied einen pausierten Status
+function snapshotState(raw) {
+  const snap = readSnapshot();
+  if (!snap) return null;
+  const s = normalize({
+    item: snap.item,
+    progress_ms: snap.progress,
+    is_playing: false,
+    shuffle_state: snap.shuffle,
+    repeat_state: snap.repeat,
+    device: raw?.device || snap.device,
+    context: snap.context ? { uri: snap.context } : null,
+  });
+  s.inactive = true;
+  return s;
+}
+
+// noch nie etwas gemerkt: zuletzt gehörtes Lied von Spotify holen
+async function seedFromRecent() {
+  if (recentTried || api?.kind !== "spotify") return;
+  recentTried = true;
+  try {
+    const r = await api.recent();
+    const last = r?.items?.find((i) => i.track);
+    if (!last || readSnapshot()) return;
+    store.set(LAST_KEY, JSON.stringify({ item: slimItem(last.track), progress: 0, context: last.context?.uri || null, shuffle: false, repeat: "off", device: null, at: Date.now() }));
+    if (!state?.id) applyState(snapshotState(null));
+  } catch {
+    /* dann bleibt es bei "Gerade läuft nichts" */
+  }
 }
 
 function pickImage(images, want) {
@@ -207,7 +300,13 @@ async function refresh() {
     pollErrors = 0;
     // eine Aktion war schneller als diese Antwort -> verwerfen
     if (asked < quietUntil) return;
-    applyState(normalize(raw));
+    let next = normalize(raw);
+    if (next?.id) saveSnapshot(next);
+    else if (api.kind === "spotify") {
+      next = snapshotState(raw) || next;
+      if (!next?.id) seedFromRecent();
+    }
+    applyState(next);
   } catch (e) {
     handleError(e, true);
   }
@@ -256,6 +355,7 @@ function render() {
   root.classList.toggle("no-track", !hasTrack);
   root.classList.toggle("is-playing", !!s?.playing);
   root.classList.toggle("is-paused", !s?.playing);
+  root.classList.toggle("is-inactive", !!s?.inactive);
 
   if (hasTrack) {
     el.title.textContent = s.name;
@@ -279,11 +379,11 @@ function render() {
   el.repeat.classList.toggle("is-one", s?.repeat === "track");
 
   const dev = s?.device;
-  el.deviceName.textContent = dev ? dev.name : "Gerät wählen";
+  el.deviceName.textContent = dev ? (s?.inactive ? `${dev.name} · pausiert` : dev.name) : "Gerät wählen";
   el.deviceIcon.innerHTML = dev ? deviceIcon(dev.type) : icon("device");
   el.deviceBtn.classList.toggle("is-live", !!s?.playing);
 
-  const canVolume = !!dev && dev.supports_volume !== false && dev.volume_percent != null;
+  const canVolume = !s?.inactive && !!dev && dev.supports_volume !== false && dev.volume_percent != null;
   el.volumeRow.hidden = !canVolume;
   if (canVolume && document.activeElement !== el.volume && !volumeTimer) {
     el.volume.value = dev.volume_percent;
@@ -403,6 +503,7 @@ const deviceId = () => state?.device?.id;
 
 async function togglePlay() {
   if (!state?.id) return openDevices();
+  if (state.inactive) return resume();
   const pos = currentPosition();
   const wasPlaying = state.playing;
   state.progress = pos;
@@ -416,6 +517,54 @@ async function togglePlay() {
     handleError(e);
     refresh();
   }
+}
+
+// gemerktes Lied an derselben Stelle fortsetzen, am liebsten auf demselben Gerät
+async function resume(targetId) {
+  const s = state;
+  if (!s?.inactive) return;
+  try {
+    let id = targetId;
+    if (!id) {
+      const list = (await api.devices())?.devices || [];
+      const dev = list.find((d) => d.id === s.device?.id) || list.find((d) => d.is_active) || (list.length === 1 ? list[0] : null);
+      if (!dev) {
+        openDevices({ resume: true });
+        if (!list.length) toast("Kein Gerät erreichbar. Öffne Spotify kurz, dann geht es weiter.", 3500);
+        return;
+      }
+      id = dev.id;
+    }
+    s.playing = true;
+    fetchedAt = performance.now();
+    render();
+    await playResume(id, s);
+    settle([600, 1600, 3200]);
+  } catch (e) {
+    s.playing = false;
+    render();
+    if (e.status === 404 || e.reason === "NO_ACTIVE_DEVICE") {
+      toast("Das Gerät schläft gerade. Wähl ein anderes oder öffne Spotify kurz.", 3800);
+      openDevices({ resume: true });
+      return;
+    }
+    handleError(e);
+  }
+}
+
+async function playResume(id, s) {
+  const position_ms = Math.max(0, Math.round(s.progress || 0));
+  const ctxOk = s.contextUri && /^spotify:(album|playlist|show|user:[^:]+:collection)/.test(s.contextUri);
+  if (ctxOk) {
+    try {
+      return await api.play(id, { context_uri: s.contextUri, offset: { uri: s.uri }, position_ms });
+    } catch (e) {
+      // Kontext nicht (mehr) abspielbar: nur das Lied selbst
+      if (e.status === 404 && e.reason === "NO_ACTIVE_DEVICE") throw e;
+      if (![400, 403, 404].includes(e.status)) throw e;
+    }
+  }
+  return api.play(id, { uris: [s.uri], position_ms });
 }
 
 async function skip(dir) {
@@ -459,6 +608,12 @@ async function cycleRepeat() {
 async function seekTo(ms) {
   state.progress = ms;
   fetchedAt = performance.now();
+  if (state.inactive) {
+    // nichts aktiv: Stelle nur merken, beim Fortsetzen geht es dort weiter
+    const snap = readSnapshot();
+    if (snap) store.set(LAST_KEY, JSON.stringify({ ...snap, progress: Math.round(ms) }));
+    return;
+  }
   try {
     await api.seek(ms, deviceId());
     settle();
@@ -530,7 +685,7 @@ function bindCoverSwipe() {
   let axis = null;
 
   wrap.addEventListener("pointerdown", (e) => {
-    if (!state?.id || e.button > 0) return;
+    if (!state?.id || state.inactive || e.button > 0) return;
     x0 = e.clientX;
     y0 = e.clientY;
     dx = 0;
@@ -723,7 +878,10 @@ function ago(iso) {
 // Geräte
 // ------------------------------------------------------------------
 
-async function openDevices() {
+let resumeMode = false;
+
+async function openDevices(opts = {}) {
+  resumeMode = !!opts.resume || !!state?.inactive;
   openSheet(el.devices);
   el.deviceList.innerHTML = skeleton(3);
   try {
@@ -747,6 +905,7 @@ async function openDevices() {
 
 async function chooseDevice(id) {
   closeSheet();
+  if (resumeMode && state?.inactive) return resume(id);
   if (id === deviceId()) return;
   try {
     await api.transfer(id, state?.playing ?? true);
@@ -944,6 +1103,7 @@ function bindEvents() {
     }
   });
   document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") saveSnapshot(state, true);
     if (document.visibilityState === "visible" && api) refresh();
   });
   wide.addEventListener("change", () => {

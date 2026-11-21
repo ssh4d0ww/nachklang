@@ -115,7 +115,11 @@ export function createLibrary(ctx) {
       const [pl, al, li] = await Promise.allSettled([api.myPlaylists(0), api.savedAlbums(0), api.savedTracks(0)]);
       if (done(t)) return;
       const val = (r) => (r.status === "fulfilled" ? r.value : null);
-      home = { playlists: val(pl), albums: val(al), liked: val(li), at: Date.now(), error: [pl, al, li].every((r) => r.status === "rejected") ? pl.reason : null };
+      home = {
+        playlists: val(pl), albums: val(al), liked: val(li), at: Date.now(),
+        playlistError: pl.status === "rejected" ? pl.reason?.message || "Fehler" : null,
+        error: [pl, al, li].every((r) => r.status === "rejected") ? pl.reason : null,
+      };
       if (home.error) {
         const msg = home.error.message;
         home = null;
@@ -124,6 +128,15 @@ export function createLibrary(ctx) {
       }
     }
     const playlists = (home.playlists?.items || []).filter(Boolean);
+    // Login von vor dem Update: ohne Berechtigung für private Playlists
+    const reconnect = ctx.needsReconnect?.()
+      ? `<li><button class="row" data-action="reconnect">
+          <span class="thumb liked-thumb">${icon("library")}</span>
+          <span class="row-text"><div class="row-title">Playlists freischalten</div><div class="row-sub">Einmal neu mit Spotify verbinden</div></span>
+          <span class="row-chev">${icon("chevron")}</span>
+        </button></li>`
+      : "";
+    const playlistError = !home.playlists && home.playlistError ? `<li class="list-empty small">Playlists konnten nicht geladen werden: ${esc(home.playlistError)}</li>` : "";
     const albums = (home.albums?.items || []).map((e) => e?.album).filter(Boolean);
     const likedTotal = home.liked?.total ?? 0;
     root.innerHTML = `<ul class="track-list">
@@ -133,7 +146,8 @@ export function createLibrary(ctx) {
           <span class="row-chev">${icon("chevron")}</span>
         </button></li>
         <li class="list-label">Playlists</li>
-        ${playlists.length ? playlists.map(playlistRow).join("") : `<li class="list-empty small">Noch keine Playlists.</li>`}
+        ${reconnect}
+        ${playlists.length ? playlists.map(playlistRow).join("") : playlistError || (reconnect ? "" : `<li class="list-empty small">Noch keine Playlists.</li>`)}
         ${home.playlists?.next ? `<li><button class="more-btn" data-more="playlists">Mehr Playlists laden</button></li>` : ""}
         <li class="list-label">Alben</li>
         ${albums.length ? albums.map(albumRow).join("") : `<li class="list-empty small">Noch keine gespeicherten Alben.</li>`}
@@ -357,6 +371,8 @@ export function createLibrary(ctx) {
       }
     } else if (t.dataset.play !== undefined) {
       playFrom(top(), Number(t.dataset.play));
+    } else if (t.dataset.action === "reconnect") {
+      ctx.reconnect();
     } else if (t.dataset.action === "play") {
       playFrom(top(), null);
     } else if (t.dataset.action === "shuffle") {
