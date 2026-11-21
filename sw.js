@@ -1,7 +1,7 @@
 // Nachklang Service Worker: App-Dateien offline verfügbar machen.
 // Immer zuerst das Netz fragen (damit Updates sofort ankommen),
 // nur ohne Verbindung aus dem Cache laden. Spotify-Anfragen gehen nie über den Cache.
-const CACHE = "nachklang-v2";
+const CACHE = "nachklang-v3";
 const SHELL = [
   "./",
   "index.html",

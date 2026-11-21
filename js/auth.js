@@ -28,6 +28,13 @@ export function isLoggedIn() {
   return !!readToken();
 }
 
+// Berechtigungen aus CONFIG.scopes, die der aktuelle Login noch nicht hat
+// (z. B. nach einem Update, das neue Funktionen braucht)
+export function missingScopes(wanted = CONFIG.scopes) {
+  const granted = new Set((readToken()?.scope || "").split(/\s+/).filter(Boolean));
+  return wanted.filter((s) => !granted.has(s));
+}
+
 export function logout() {
   store.remove(KEYS.token);
 }
@@ -46,6 +53,8 @@ function saveToken(data, previous) {
     // Spotify schickt beim Erneuern nicht immer einen neuen refresh_token
     refresh: data.refresh_token || previous?.refresh || null,
     expires: Date.now() + (data.expires_in - 60) * 1000,
+    // welche Berechtigungen der Login wirklich erteilt hat
+    scope: data.scope || previous?.scope || "",
   };
   store.set(KEYS.token, JSON.stringify(token));
   return token;
